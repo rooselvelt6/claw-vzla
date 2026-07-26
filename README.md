@@ -37,12 +37,12 @@ kraken/
 ├── reverse/          # Ingeniería inversa: disassembly, entropía
 ├── supplychain/      # Análisis OSV, typosquat, dependency risk
 ├── localmodels/      # ML local: classifier, sequence analysis, ensemble
+├── kraken-infra/     # Sandbox real: Seccomp BPF, Landlock LSM, namespaces
 ├── plugins/          # Sistema de plugins extensible
 ├── telemetry/        # Telemetría y métricas
 ├── optimization/     # Algoritmos PSO, ACO, simulated annealing, GA
-├── sandbox/          # Aislamiento: Seccomp BPF, Landlock, NSJail
 ├── rusty-claude-cli/ # Binario principal (target: kraken)
-└── ...               # 35 crates en total
+└── ...               # 43 crates en total
 ```
 
 ---
@@ -159,15 +159,14 @@ AWS S3/IAM/EC2 auditing, GCP, Azure, Kubernetes security contexts, Dockerfile an
 
 | Métrica | Valor |
 |---------|-------|
-| **Crates** | 35 |
+| **Crates** | 43 |
 | **Líneas de código** | ~210,000 |
 | **Tests** | 513+ (427 unit + 74 integration + 12 meta_agent) |
 | **Doc-tests** | 74 |
 | **Unsafe** | 0 |
-| **Clippy warnings** | 0 (vulnscan + runtime) |
 | **LLM providers** | 8 |
 | **Shellcode architectures** | 6 (Linux x64/x86/ARM/ARM64, Windows x64/x86, macOS) |
-| **Slash commands** | 100+ |
+| **Slash commands** | 143 |
 | **Kernel AST checkers** | 14 |
 | **Sanitizer parsers** | 3 (KASAN, KCSAN, KMSAN) |
 
@@ -212,25 +211,18 @@ cargo build --release
 
 ---
 
-## Roadmap v2.0 (Completado)
+## Roadmap v4.0 — Auditoría Arquitectónica
 
 | Fase | Estado | Detalle |
 |------|--------|---------|
-| **F1: Foundation** | ✅ | Shellcode multi-arch (6 archs), kernel PoC generator, fuzz target generator, Frida scripts, 74 integration tests |
-| **F2: Intelligence** | ✅ | Kimi K3 (1M context), program-slice analysis, call graph builder, multi-agent coordinator, cross-validation |
-| **F3: Supply Chain** | ✅ | SBOM (CycloneDX/SPDX), dependency graph, risk scoring, compliance (CIS benchmarks), MCP trust scoring |
-| **F4: Offensive** | ✅ | C2 server (HTTP/WebSocket/DNS), malleable profiles, WiFi real (aircrack-ng), firmware analysis con LLM |
-| **F5: Enterprise** | ✅ | Dashboard en vivo, reportes PDF, MCP tool server, CLI polish |
-
-## Roadmap v3.0 (En Progreso — Deuda Técnica)
-
-| Fase | Estado | Detalle |
-|------|--------|---------|
-| **1. Higiene** | ✅ | Eliminar dependencias muertas, unificar thiserror, limpiar clippy suppressions |
-| **2. C2+Security** | ✅ | Integrar crypto de c2 con security crate, eliminar duplicación |
-| **3. Runtime decomposition** | ⏳ | Dividir runtime (48K LOC) en ~8 crates enfocados |
-| **4. Error handling** | ⏳ | Eliminar `Result<T, String>`, crear tipos de error estructurados |
-| **5. Verificación** | ⏳ | Compilación, tests, clippy, zero unsafe |
+| **F0: Build clean** | ✅ | `cargo check --workspace` compila limpio |
+| **F6: rand migration** | ✅ | rand 0.8→0.10, 12 crates hardcoded, 30 archivos migrados |
+| **F10: Real sandbox** | ✅ | Seccomp BPF, Landlock LSM, namespaces, rlimits integrados en kraken-infra |
+| **F11: Deprecations** | ✅ | SHA-256 KDF deprecated, `KdfAlgorithm::Sha256` deprecated |
+| **F12: Flaky test** | ✅ | Test aicampaign determinizado (factor random eliminado) |
+| **F8: OnceLock globals** | ⏭️ | 6 globals confinados a tools/src/lib.rs — bajo impacto, pendiente |
+| **F5: Decompose main.rs** | ⏳ | main.rs (13.7K líneas) → 5 sub-crates |
+| **F7: Clippy suppressions** | ⏳ | 18 `#[allow(clippy)]` en main.rs — requiere F5 |
 
 ---
 
