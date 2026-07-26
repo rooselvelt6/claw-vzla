@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpTool {
@@ -170,7 +171,7 @@ impl McpToolServer {
     ) -> AuthToken {
         let token = format!(
             "kraken_{}",
-            hex::encode(rand::random::<[u8; 16]>())
+            hex::encode(rand::rng().random::<[u8; 16]>())
         );
         let auth_token = AuthToken {
             token: token.clone(),

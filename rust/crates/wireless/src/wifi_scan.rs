@@ -1,3 +1,4 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::process::Command;
@@ -33,17 +34,17 @@ pub struct ScanResult {
 pub struct WifiScanner;
 
 impl WifiScanner {
-    pub fn scan(interface: &str) -> Result<ScanResult, String> {
+    pub fn scan(interface: &str) -> Result<ScanResult, WirelessError> {
         let start = std::time::Instant::now();
 
         let output = Command::new("iw")
             .args(["dev", interface, "scan"])
             .output()
-            .map_err(|e| format!("iw scan failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("iw scan failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("iw scan error: {}", stderr.trim()));
+            return Err(WirelessError::Command(format!("iw scan error: {}", stderr.trim())));
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -58,17 +59,17 @@ impl WifiScanner {
         })
     }
 
-    pub fn scan_quick(interface: &str) -> Result<ScanResult, String> {
+    pub fn scan_quick(interface: &str) -> Result<ScanResult, WirelessError> {
         let start = std::time::Instant::now();
 
         let output = Command::new("iw")
             .args(["dev", interface, "scan", "--duration", "1000"])
             .output()
-            .map_err(|e| format!("iw scan failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("iw scan failed: {}", e)))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("iw scan error: {}", stderr.trim()));
+            return Err(WirelessError::Command(format!("iw scan error: {}", stderr.trim())));
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -123,7 +124,7 @@ impl WifiScanner {
             .collect()
     }
 
-    pub fn set_channel(interface: &str, channel: u16) -> Result<(), String> {
+    pub fn set_channel(interface: &str, channel: u16) -> Result<(), WirelessError> {
         let freqs: HashMap<u16, u16> = [
             (1, 2412), (2, 2417), (3, 2422), (4, 2427),
             (5, 2432), (6, 2437), (7, 2442), (8, 2447),
@@ -137,18 +138,18 @@ impl WifiScanner {
             (149, 5745), (153, 5765), (157, 5785), (161, 5805), (165, 5825),
         ].iter().copied().collect();
 
-        let freq = freqs.get(&channel).ok_or_else(|| format!("Invalid channel: {}", channel))?;
+        let freq = freqs.get(&channel).ok_or_else(|| WirelessError::Other(format!("Invalid channel: {}", channel)))?;
 
         let output = Command::new("iw")
             .args(["dev", interface, "set", "freq", &freq.to_string()])
             .output()
-            .map_err(|e| format!("iw set freq failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("iw set freq failed: {}", e)))?;
 
         if output.status.success() {
             Ok(())
         } else {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            Err(format!("Failed to set channel: {}", stderr.trim()))
+            Err(WirelessError::Command(format!("Failed to set channel: {}", stderr.trim())))
         }
     }
 }

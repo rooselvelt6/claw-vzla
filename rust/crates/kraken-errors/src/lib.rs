@@ -53,6 +53,12 @@ impl From<String> for ToolError {
     }
 }
 
+impl From<RuntimeError> for ToolError {
+    fn from(e: RuntimeError) -> Self {
+        Self::Worker(e.to_string())
+    }
+}
+
 // ─── Sandbox errors ─────────────────────────────────────────────────
 
 #[derive(Debug, thiserror::Error)]
@@ -154,11 +160,57 @@ pub enum WirelessError {
     #[error("device: {}", .0)]
     Device(String),
 
+    #[error("timeout: {}", .0)]
+    Timeout(String),
+
     #[error("{}", .0)]
     Other(String),
 }
 
 impl From<String> for WirelessError {
+    fn from(s: String) -> Self {
+        Self::Other(s)
+    }
+}
+
+// ─── Password errors ────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum PasswordError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("network: {}", .0)]
+    Network(String),
+
+    #[error("protocol: {}", .0)]
+    Protocol(String),
+
+    #[error("{}", .0)]
+    Other(String),
+}
+
+impl From<String> for PasswordError {
+    fn from(s: String) -> Self {
+        Self::Other(s)
+    }
+}
+
+// ─── Vulnscan errors ────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum VulnscanError {
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("not found: {}", .0)]
+    NotFound(String),
+
+    #[error("{}", .0)]
+    Other(String),
+}
+
+impl From<String> for VulnscanError {
     fn from(s: String) -> Self {
         Self::Other(s)
     }
@@ -210,6 +262,98 @@ impl From<String> for NetworkError {
     }
 }
 
+// ─── Runtime errors ────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum RuntimeError {
+    #[error("not found: {}", .0)]
+    NotFound(String),
+
+    #[error("invalid state: {}", .0)]
+    InvalidState(String),
+
+    #[error("validation: {}", .0)]
+    Validation(String),
+
+    #[error("plugin: {}", .0)]
+    Plugin(String),
+
+    #[error("io: {0}")]
+    Io(#[from] std::io::Error),
+
+    #[error("{}", .0)]
+    Other(String),
+}
+
+impl From<String> for RuntimeError {
+    fn from(s: String) -> Self {
+        Self::Other(s)
+    }
+}
+
+// ─── MCP errors ────────────────────────────────────────────────────
+
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
+pub enum McpError {
+    #[error("server not found: {0}")]
+    ServerNotFound(String),
+
+    #[error("server '{server}' is not connected (status: {status})")]
+    NotConnected { server: String, status: String },
+
+    #[error("{0}")]
+    Other(String),
+}
+
+impl From<String> for McpError {
+    fn from(s: String) -> Self {
+        Self::Other(s)
+    }
+}
+
+impl From<McpError> for ToolError {
+    fn from(e: McpError) -> Self {
+        Self::Other(e.to_string())
+    }
+}
+
+// ─── Event errors ──────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum EventError {
+    #[error("{0}")]
+    NotFound(String),
+
+    #[error("{0}")]
+    Other(String),
+}
+
+impl From<String> for EventError {
+    fn from(s: String) -> Self {
+        Self::Other(s)
+    }
+}
+
+impl From<EventError> for ToolError {
+    fn from(e: EventError) -> Self {
+        Self::Other(e.to_string())
+    }
+}
+
+// ─── Command errors ────────────────────────────────────────────────
+
+#[derive(Debug, thiserror::Error)]
+pub enum CommandError {
+    #[error("{0}")]
+    Other(String),
+}
+
+impl From<String> for CommandError {
+    fn from(s: String) -> Self {
+        Self::Other(s)
+    }
+}
+
 // ─── Unified KrakenError ────────────────────────────────────────────
 
 /// The top-level error type that can represent any domain error in Kraken.
@@ -227,11 +371,29 @@ pub enum KrakenError {
     #[error("wireless: {0}")]
     Wireless(#[from] WirelessError),
 
+    #[error("password: {0}")]
+    Password(#[from] PasswordError),
+
+    #[error("vulnscan: {0}")]
+    Vulnscan(#[from] VulnscanError),
+
     #[error("forensics: {0}")]
     Forensics(#[from] ForensicsError),
 
     #[error("network: {0}")]
     Network(#[from] NetworkError),
+
+    #[error("runtime: {0}")]
+    Runtime(#[from] RuntimeError),
+
+    #[error("mcp: {0}")]
+    Mcp(#[from] McpError),
+
+    #[error("event: {0}")]
+    Event(#[from] EventError),
+
+    #[error("command: {0}")]
+    Command(#[from] CommandError),
 
     #[error("io: {0}")]
     Io(#[from] std::io::Error),

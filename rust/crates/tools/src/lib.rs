@@ -1879,7 +1879,7 @@ fn run_list_mcp_resources(input: McpResourceInput) -> Result<String, ToolError> 
         Err(e) => to_pretty_json(json!({
             "server": server,
             "resources": [],
-            "error": e
+            "error": e.to_string()
         })),
     }
 }
@@ -1900,7 +1900,7 @@ fn run_read_mcp_resource(input: McpResourceInput) -> Result<String, ToolError> {
         Err(e) => to_pretty_json(json!({
             "server": server,
             "uri": uri,
-            "error": e
+            "error": e.to_string()
         })),
     }
 }
@@ -2002,7 +2002,7 @@ fn run_mcp_tool(input: McpToolInput) -> Result<String, ToolError> {
         Err(e) => to_pretty_json(json!({
             "server": input.server,
             "tool": input.tool,
-            "error": e,
+            "error": e.to_string(),
             "status": "error"
         })),
     }

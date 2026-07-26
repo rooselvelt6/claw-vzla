@@ -1,3 +1,4 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -60,7 +61,7 @@ impl DeauthAttack {
         self
     }
 
-    pub fn start(&mut self) -> Result<DeauthStats, String> {
+    pub fn start(&mut self) -> Result<DeauthStats, WirelessError> {
         self.running.store(true, Ordering::SeqCst);
         let start = std::time::Instant::now();
 
@@ -79,7 +80,7 @@ impl DeauthAttack {
         let output = Command::new("aireplay-ng")
             .args(&args)
             .output()
-            .map_err(|e| format!("aireplay-ng deauth failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("aireplay-ng deauth failed: {}", e)))?;
 
         let duration = start.elapsed().as_secs_f64();
 
@@ -105,7 +106,7 @@ impl DeauthAttack {
         })
     }
 
-    pub fn start_continuous(&mut self) -> Result<(), String> {
+    pub fn start_continuous(&mut self) -> Result<(), WirelessError> {
         self.running.store(true, Ordering::SeqCst);
         let running = self.running.clone();
         let interface = self.interface.clone();

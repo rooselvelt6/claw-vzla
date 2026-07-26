@@ -8,6 +8,7 @@ use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 
 use kraken_config::config::OAuthConfig;
+use kraken_errors::McpError;
 
 use security::vault::{open_credential_vault, CredentialVault, MasterKey};
 
@@ -268,12 +269,12 @@ pub fn credentials_path() -> io::Result<PathBuf> {
     Ok(credentials_home_dir()?.join("credentials.json"))
 }
 
-fn try_init_vault() -> Result<Option<CredentialVault>, String> {
+fn try_init_vault() -> Result<Option<CredentialVault>, McpError> {
     let Some(master_key) = MasterKey::from_env() else {
         return Ok(None);
     };
     let vault = open_credential_vault(&master_key)
-        .map_err(|e| format!("failed to open vault: {e}"))?;
+        .map_err(|e| McpError::Other(format!("failed to open vault: {e}")))?;
     Ok(Some(vault))
 }
 
@@ -333,17 +334,17 @@ pub fn clear_oauth_credentials() -> io::Result<()> {
     write_credentials_root(&path, &root)
 }
 
-pub fn parse_oauth_callback_request_target(target: &str) -> Result<OAuthCallbackParams, String> {
+pub fn parse_oauth_callback_request_target(target: &str) -> Result<OAuthCallbackParams, McpError> {
     let (path, query) = target
         .split_once('?')
         .map_or((target, ""), |(path, query)| (path, query));
     if path != "/callback" {
-        return Err(format!("unexpected callback path: {path}"));
+        return Err(McpError::Other(format!("unexpected callback path: {path}")));
     }
     parse_oauth_callback_query(query)
 }
 
-pub fn parse_oauth_callback_query(query: &str) -> Result<OAuthCallbackParams, String> {
+pub fn parse_oauth_callback_query(query: &str) -> Result<OAuthCallbackParams, McpError> {
     let mut params = BTreeMap::new();
     for pair in query.split('&').filter(|pair| !pair.is_empty()) {
         let (key, value) = pair
@@ -484,7 +485,7 @@ fn percent_encode(value: &str) -> String {
     encoded
 }
 
-fn percent_decode(value: &str) -> Result<String, String> {
+fn percent_decode(value: &str) -> Result<String, McpError> {
     let mut decoded = Vec::with_capacity(value.len());
     let bytes = value.as_bytes();
     let mut index = 0;
@@ -506,15 +507,15 @@ fn percent_decode(value: &str) -> Result<String, String> {
             }
         }
     }
-    String::from_utf8(decoded).map_err(|error| error.to_string())
+    String::from_utf8(decoded).map_err(|error| McpError::Other(error.to_string()))
 }
 
-fn decode_hex(byte: u8) -> Result<u8, String> {
+fn decode_hex(byte: u8) -> Result<u8, McpError> {
     match byte {
         b'0'..=b'9' => Ok(byte - b'0'),
         b'a'..=b'f' => Ok(byte - b'a' + 10),
         b'A'..=b'F' => Ok(byte - b'A' + 10),
-        _ => Err(format!("invalid percent byte: {byte}")),
+        _ => Err(McpError::Other(format!("invalid percent byte: {byte}"))),
     }
 }
 

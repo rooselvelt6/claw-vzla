@@ -1,4 +1,4 @@
-
+use rand::RngExt;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct KubeBenchCheck {
@@ -65,7 +65,7 @@ impl KubeBenchRunner {
         ];
 
         for (id, text, audit, remediation, scored) in master_checks {
-            let result = if rand::random::<f64>() > 0.3 { "PASS".to_string() } else { "FAIL".to_string() };
+            let result = if rand::rng().random::<f64>() > 0.3 { "PASS".to_string() } else { "FAIL".to_string() };
             match result.as_str() {
                 "PASS" => passed += 1,
                 "FAIL" => failed += 1,
@@ -118,7 +118,7 @@ impl KubeBenchRunner {
         ];
 
         for (id, text, audit, remediation, scored) in node_checks {
-            let result = if rand::random::<f64>() > 0.4 { "PASS".to_string() } else { "FAIL".to_string() };
+            let result = if rand::rng().random::<f64>() > 0.4 { "PASS".to_string() } else { "FAIL".to_string() };
             match result.as_str() {
                 "PASS" => passed += 1,
                 "FAIL" => failed += 1,

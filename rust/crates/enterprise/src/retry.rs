@@ -1,5 +1,5 @@
 /// Retry logic with exponential backoff and jitter
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -40,8 +40,8 @@ impl RetryConfig {
         let delay_ms = base.min(self.max_delay_ms as f64) as u64;
 
         if self.jitter {
-            let mut rng = rand::thread_rng();
-            let jitter_range = 0.5 + rng.gen::<f64>() * 0.5;
+            let mut rng = rand::rng();
+            let jitter_range = 0.5 + rng.random::<f64>() * 0.5;
             let jittered = (delay_ms as f64 * jitter_range) as u64;
             Duration::from_millis(jittered.max(1))
         } else {

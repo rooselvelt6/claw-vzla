@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,12 +102,12 @@ impl SdrScanner {
         let mut signals = Vec::new();
         let step = 0.5;
         let mut freq = start_mhz;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         while freq <= end_mhz {
-            let amplitude: f64 = rng.gen_range(0.0..1.0);
+            let amplitude: f64 = rng.random_range(0.0..1.0);
             if amplitude > 0.85 {
-                let bw = rng.gen_range(0.05..0.5);
+                let bw = rng.random_range(0.05..0.5);
                 signals.push(Signal {
                     frequency_mhz: freq,
                     amplitude,
@@ -117,8 +117,8 @@ impl SdrScanner {
                         "AM".to_string(),
                         "SSB".to_string(),
                         "Digital".to_string(),
-                    ].into_iter().nth(rng.gen_range(0..4)).unwrap_or_default(),
-                    confidence: rng.gen_range(0.3..0.95),
+                    ].into_iter().nth(rng.random_range(0..4)).unwrap_or_default(),
+                    confidence: rng.random_range(0.3..0.95),
                 });
             }
             freq += step;
@@ -136,19 +136,19 @@ impl SdrScanner {
     }
 
     pub fn scan_specific_frequencies(frequencies: &[f64]) -> Vec<Signal> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         frequencies.iter().map(|&freq| {
-            let amplitude: f64 = rng.gen_range(0.0..1.0);
+            let amplitude: f64 = rng.random_range(0.0..1.0);
             Signal {
                 frequency_mhz: freq,
                 amplitude,
-                bandwidth: rng.gen_range(0.01..0.2),
+                bandwidth: rng.random_range(0.01..0.2),
                 modulation: vec![
                     "FM".to_string(),
                     "AM".to_string(),
                     "Digital".to_string(),
-                ].into_iter().nth(rng.gen_range(0..3)).unwrap_or_default(),
-                confidence: rng.gen_range(0.3..0.9),
+                ].into_iter().nth(rng.random_range(0..3)).unwrap_or_default(),
+                confidence: rng.random_range(0.3..0.9),
             }
         }).collect()
     }

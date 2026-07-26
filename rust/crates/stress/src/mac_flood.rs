@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MacFloodConfig {
@@ -54,7 +55,7 @@ impl MacFlooder {
     }
 
     pub fn generate_mac() -> String {
-        let bytes: [u8; 6] = rand::random();
+        let bytes: [u8; 6] = rand::rng().random();
         format!(
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]

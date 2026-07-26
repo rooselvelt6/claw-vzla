@@ -1,3 +1,4 @@
+use kraken_errors::PasswordError;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
@@ -67,11 +68,11 @@ impl WordlistGenerator {
         result
     }
 
-    pub fn to_file(&self, path: &str) -> Result<usize, String> {
+    pub fn to_file(&self, path: &str) -> Result<usize, PasswordError> {
         let words = self.generate();
-        let mut file = File::create(path).map_err(|e| format!("Cannot create file: {}", e))?;
+        let mut file = File::create(path).map_err(PasswordError::Io)?;
         for word in &words {
-            writeln!(file, "{}", word).map_err(|e| format!("Write error: {}", e))?;
+            writeln!(file, "{}", word).map_err(PasswordError::Io)?;
         }
         Ok(words.len())
     }

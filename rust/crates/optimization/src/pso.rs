@@ -6,7 +6,7 @@
 //!
 //! **Application in Kraken**: Selection of optimal tools/tasks for coding problems.
 
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 /// Represents a particle in the PSO swarm
@@ -27,10 +27,10 @@ pub struct Particle {
 impl Particle {
     /// Create a new particle with random position and velocity
     pub fn new(dimensions: usize) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let position: Vec<f64> = (0..dimensions).map(|_| rng.gen()).collect();
-        let velocity: Vec<f64> = (0..dimensions).map(|_| rng.gen_range(-1.0..1.0)).collect();
+        let position: Vec<f64> = (0..dimensions).map(|_| rng.random()).collect();
+        let velocity: Vec<f64> = (0..dimensions).map(|_| rng.random_range(-1.0..1.0)).collect();
 
         Self {
             position: position.clone(),
@@ -113,7 +113,7 @@ impl PSOToolSelector {
     where
         F: Fn(&[f64]) -> f64 + Copy,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for particle in &mut self.particles {
             // Calculate fitness for current position
@@ -130,8 +130,8 @@ impl PSOToolSelector {
 
             // Update velocity and position
             for i in 0..self.dimensions {
-                let r1: f64 = rng.gen();
-                let r2: f64 = rng.gen();
+                let r1: f64 = rng.random();
+                let r2: f64 = rng.random();
 
                 // PSO velocity update formula
                 let cognitive = self.cognitive_coefficient

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BeaconFloodConfig {
@@ -63,7 +64,7 @@ impl BeaconFlooder {
     }
 
     pub fn generate_ap(index: u64, prefix: &str) -> FakeAp {
-        let bssid_bytes: [u8; 6] = rand::random::<[u8; 6]>();
+        let bssid_bytes: [u8; 6] = rand::rng().random::<[u8; 6]>();
         let bssid = format!(
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             bssid_bytes[0], bssid_bytes[1], bssid_bytes[2],

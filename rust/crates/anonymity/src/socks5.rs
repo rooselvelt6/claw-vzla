@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Socks5Proxy {
@@ -36,7 +37,7 @@ impl Socks5Chain {
                 port,
                 username: None,
                 protocol: "SOCKS5".to_string(),
-                latency_ms: rand::random::<u64>() % 200 + 50,
+                latency_ms: rand::rng().random::<u64>() % 200 + 50,
             }
         }).collect();
 

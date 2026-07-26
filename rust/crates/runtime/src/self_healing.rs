@@ -1,6 +1,7 @@
 //! Self-healing system for Kraken: checkpointing, health monitoring, auto-restart,
 //! corruption repair, and graceful shutdown.
 
+use kraken_errors::RuntimeError;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -1102,14 +1103,14 @@ fn serialize_wal(entries: &[WalEntry]) -> Result<String, serde_json::Error> {
     Ok(out)
 }
 
-fn read_wal(path: &Path) -> Result<Vec<WalEntry>, String> {
-    let file = fs::File::open(path).map_err(|e| e.to_string())?;
+fn read_wal(path: &Path) -> Result<Vec<WalEntry>, RuntimeError> {
+    let file = fs::File::open(path)?;
     let reader = BufReader::new(file);
     let mut entries = Vec::new();
     for line in reader.lines() {
-        let line = line.map_err(|e| e.to_string())?;
+        let line = line?;
         if !line.trim().is_empty() {
-            entries.push(serde_json::from_str(&line).map_err(|e| e.to_string())?);
+            entries.push(serde_json::from_str(&line).map_err(|e| RuntimeError::Other(e.to_string()))?);
         }
     }
     Ok(entries)

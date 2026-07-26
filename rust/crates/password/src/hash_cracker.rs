@@ -246,7 +246,7 @@ mod tests {
     fn test_argon2_verifier() {
         use argon2::PasswordHasher;
         use password_hash::SaltString;
-        let salt = SaltString::generate(&mut rand::thread_rng());
+        let salt = SaltString::generate(&mut password_hash::rand_core::OsRng);
         let hash = Argon2::default()
             .hash_password(b"password", &salt)
             .unwrap()

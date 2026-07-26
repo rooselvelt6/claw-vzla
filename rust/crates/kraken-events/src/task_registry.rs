@@ -8,6 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use crate::{validate_packet, TaskPacket, TaskPacketValidationError};
+use kraken_errors::EventError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -185,19 +186,19 @@ impl TaskRegistry {
     /// assert_eq!(registry.stop(&task.task_id).unwrap().status, TaskStatus::Stopped);
     /// assert!(registry.stop(&task.task_id).is_err());
     /// ```
-    pub fn stop(&self, task_id: &str) -> Result<Task, String> {
+    pub fn stop(&self, task_id: &str) -> Result<Task, EventError> {
         let mut inner = self.inner.lock().expect("registry lock poisoned");
         let task = inner
             .tasks
             .get_mut(task_id)
-            .ok_or_else(|| format!("task not found: {task_id}"))?;
+            .ok_or_else(|| EventError::NotFound(format!("task not found: {task_id}")))?;
 
         match task.status {
             TaskStatus::Completed | TaskStatus::Failed | TaskStatus::Stopped => {
-                return Err(format!(
+                return Err(EventError::Other(format!(
                     "task {task_id} is already in terminal state: {}",
                     task.status
-                ));
+                )));
             }
             _ => {}
         }
@@ -207,12 +208,12 @@ impl TaskRegistry {
         Ok(task.clone())
     }
 
-    pub fn update(&self, task_id: &str, message: &str) -> Result<Task, String> {
+    pub fn update(&self, task_id: &str, message: &str) -> Result<Task, EventError> {
         let mut inner = self.inner.lock().expect("registry lock poisoned");
         let task = inner
             .tasks
             .get_mut(task_id)
-            .ok_or_else(|| format!("task not found: {task_id}"))?;
+            .ok_or_else(|| EventError::NotFound(format!("task not found: {task_id}")))?;
 
         task.messages.push(TaskMessage {
             role: String::from("user"),
@@ -223,12 +224,12 @@ impl TaskRegistry {
         Ok(task.clone())
     }
 
-    pub fn output(&self, task_id: &str) -> Result<String, String> {
+    pub fn output(&self, task_id: &str) -> Result<String, EventError> {
         let inner = self.inner.lock().expect("registry lock poisoned");
         let task = inner
             .tasks
             .get(task_id)
-            .ok_or_else(|| format!("task not found: {task_id}"))?;
+            .ok_or_else(|| EventError::NotFound(format!("task not found: {task_id}")))?;
         Ok(task.output.clone())
     }
 
@@ -464,8 +465,8 @@ mod tests {
 
         // then
         let error = result.expect_err("completed task should be rejected");
-        assert!(error.contains("already in terminal state"));
-        assert!(error.contains("completed"));
+        assert!(error.to_string().contains("already in terminal state"));
+        assert!(error.to_string().contains("completed"));
     }
 
     #[test]
@@ -482,8 +483,8 @@ mod tests {
 
         // then
         let error = result.expect_err("failed task should be rejected");
-        assert!(error.contains("already in terminal state"));
-        assert!(error.contains("failed"));
+        assert!(error.to_string().contains("already in terminal state"));
+        assert!(error.to_string().contains("failed"));
     }
 
     #[test]

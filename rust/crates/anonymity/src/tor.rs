@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TorStatus {
@@ -42,7 +43,7 @@ impl TorProxy {
 
     pub fn new_circuit() -> TorCircuit {
         TorCircuit {
-            id: format!("circ_{:x}", rand::random::<u64>()),
+            id: format!("circ_{:x}", rand::rng().random::<u64>()),
             path: vec![
                 "192.168.1.1:9001".to_string(),
                 "10.0.0.1:9001".to_string(),
@@ -58,7 +59,7 @@ impl TorProxy {
     }
 
     pub fn estimate_latency() -> f64 {
-        250.0 + rand::random::<f64>() * 200.0
+        250.0 + rand::rng().random::<f64>() * 200.0
     }
 }
 

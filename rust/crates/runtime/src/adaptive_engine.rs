@@ -10,6 +10,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use kraken_errors::RuntimeError;
+
 use crate::heuristic_engine::{HeuristicEngine, RiskLevel};
 
 // ---------------------------------------------------------------------------
@@ -226,7 +228,7 @@ impl ThreatIntel {
         self.last_update.elapsed() >= self.update_interval
     }
 
-    pub fn update(&mut self) -> Result<usize, String> {
+    pub fn update(&mut self) -> Result<usize, RuntimeError> {
         let mut count = 0;
 
         if let Some(ref path) = self.feed_path {
@@ -438,7 +440,7 @@ impl HoneytokenManager {
         }
     }
 
-    pub fn deploy(&self) -> Result<usize, String> {
+    pub fn deploy(&self) -> Result<usize, RuntimeError> {
         let mut count = 0;
         for token in &self.tokens {
             if token.triggered {
@@ -479,7 +481,7 @@ impl HoneytokenManager {
         None
     }
 
-    pub fn remove_all(&self) -> Result<usize, String> {
+    pub fn remove_all(&self) -> Result<usize, RuntimeError> {
         let mut count = 0;
         for token in &self.tokens {
             if token.path.exists() {
@@ -1192,7 +1194,7 @@ impl AdaptiveEngine {
         }
     }
 
-    pub fn initialize(&mut self) -> Result<(), String> {
+    pub fn initialize(&mut self) -> Result<(), RuntimeError> {
         if !self.enabled {
             return Ok(());
         }

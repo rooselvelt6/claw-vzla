@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use kraken_errors::RuntimeError;
 use serde::{Deserialize, Serialize};
 
 fn now_secs() -> u64 {
@@ -268,12 +269,12 @@ impl WorkerRegistry {
         inner.workers.get(worker_id).cloned()
     }
 
-    pub fn observe(&self, worker_id: &str, screen_text: &str) -> Result<Worker, String> {
+    pub fn observe(&self, worker_id: &str, screen_text: &str) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
         let lowered = screen_text.to_ascii_lowercase();
 
         if !worker.trust_gate_cleared && detect_trust_prompt(&lowered) {
@@ -416,18 +417,18 @@ impl WorkerRegistry {
         Ok(worker.clone())
     }
 
-    pub fn resolve_trust(&self, worker_id: &str) -> Result<Worker, String> {
+    pub fn resolve_trust(&self, worker_id: &str) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
 
         if worker.status != WorkerStatus::TrustRequired {
-            return Err(format!(
+            return Err(RuntimeError::InvalidState(format!(
                 "worker {worker_id} is not waiting on trust; current status: {}",
                 worker.status
-            ));
+            )));
         }
 
         worker.trust_gate_cleared = true;
@@ -451,18 +452,18 @@ impl WorkerRegistry {
         worker_id: &str,
         prompt: Option<&str>,
         task_receipt: Option<WorkerTaskReceipt>,
-    ) -> Result<Worker, String> {
+    ) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
 
         if worker.status != WorkerStatus::ReadyForPrompt {
-            return Err(format!(
+            return Err(RuntimeError::InvalidState(format!(
                 "worker {worker_id} is not ready for prompt delivery; current status: {}",
                 worker.status
-            ));
+            )));
         }
 
         let next_prompt = prompt
@@ -470,7 +471,7 @@ impl WorkerRegistry {
             .filter(|value| !value.is_empty())
             .map(str::to_owned)
             .or_else(|| worker.replay_prompt.clone())
-            .ok_or_else(|| format!("worker {worker_id} has no prompt to send or replay"))?;
+            .ok_or_else(|| RuntimeError::InvalidState(format!("worker {worker_id} has no prompt to send or replay")))?;
 
         worker.prompt_delivery_attempts += 1;
         worker.prompt_in_flight = true;
@@ -492,10 +493,10 @@ impl WorkerRegistry {
         Ok(worker.clone())
     }
 
-    pub fn await_ready(&self, worker_id: &str) -> Result<WorkerReadySnapshot, String> {
+    pub fn await_ready(&self, worker_id: &str) -> Result<WorkerReadySnapshot, RuntimeError> {
         let worker = self
             .get(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
 
         Ok(WorkerReadySnapshot {
             worker_id: worker.worker_id.clone(),
@@ -510,12 +511,12 @@ impl WorkerRegistry {
         })
     }
 
-    pub fn restart(&self, worker_id: &str) -> Result<Worker, String> {
+    pub fn restart(&self, worker_id: &str) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
         worker.status = WorkerStatus::Spawning;
         worker.trust_gate_cleared = false;
         worker.last_prompt = None;
@@ -533,12 +534,12 @@ impl WorkerRegistry {
         Ok(worker.clone())
     }
 
-    pub fn terminate(&self, worker_id: &str) -> Result<Worker, String> {
+    pub fn terminate(&self, worker_id: &str) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
         worker.status = WorkerStatus::Finished;
         worker.prompt_in_flight = false;
         push_event(
@@ -558,12 +559,12 @@ impl WorkerRegistry {
         worker_id: &str,
         finish_reason: &str,
         tokens_output: u64,
-    ) -> Result<Worker, String> {
+    ) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
 
         let is_provider_failure =
             (finish_reason == "unknown" && tokens_output == 0) || finish_reason == "error";
@@ -615,12 +616,12 @@ impl WorkerRegistry {
         pane_command: &str,
         transport_healthy: bool,
         mcp_healthy: bool,
-    ) -> Result<Worker, String> {
+    ) -> Result<Worker, RuntimeError> {
         let mut inner = self.inner.lock().expect("worker registry lock poisoned");
         let worker = inner
             .workers
             .get_mut(worker_id)
-            .ok_or_else(|| format!("worker not found: {worker_id}"))?;
+            .ok_or_else(|| RuntimeError::NotFound(format!("worker not found: {worker_id}")))?;
 
         let now = now_secs();
         let elapsed = now.saturating_sub(worker.created_at);
@@ -1106,6 +1107,7 @@ mod tests {
         let send_before_resolve = registry.send_prompt(&worker.worker_id, Some("ship it"), None);
         assert!(send_before_resolve
             .expect_err("prompt delivery should be gated")
+            .to_string()
             .contains("not ready for prompt delivery"));
 
         let resolved = registry

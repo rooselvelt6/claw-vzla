@@ -9,6 +9,7 @@ pub mod k8s;
 pub mod docker;
 pub mod kube_bench;
 pub mod metadata;
+pub mod error;
 
 pub use aws_s3::S3Enumerator;
 pub use aws_iam::IamAuditor;
@@ -19,3 +20,4 @@ pub use k8s::K8sAuditor;
 pub use docker::DockerAuditor;
 pub use kube_bench::KubeBenchRunner;
 pub use metadata::CloudMetadataApi;
+pub use error::CloudSecError;

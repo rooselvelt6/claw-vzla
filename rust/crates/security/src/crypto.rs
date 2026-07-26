@@ -8,7 +8,7 @@ use argon2::{Argon2, PasswordHasher};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use chacha20poly1305::{aead::Aead, XChaCha20Poly1305, XNonce};
 use kraken_errors::SecurityError;
-use rand::RngCore;
+use password_hash::rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
@@ -30,6 +30,7 @@ pub enum EncryptionAlgorithm {
 pub enum KdfAlgorithm {
     #[default]
     Argon2id,
+    #[deprecated(note = "Use KdfAlgorithm::Argon2id instead — SHA-256 KDF is weak")]
     Sha256,
 }
 
@@ -141,6 +142,7 @@ impl Key {
         }
     }
 
+    #[deprecated(note = "Use Key::from_password_argon2id() instead — SHA-256 KDF is weak")]
     pub fn from_password_sha256(password: &str, salt: &[u8]) -> Self {
         let mut hasher = Sha256::new();
         hasher.update(password.as_bytes());
@@ -340,6 +342,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(deprecated)]
     fn test_sha256_legacy_compatibility() {
         let password = "legacy-password";
         let salt = [2u8; SALT_SIZE];

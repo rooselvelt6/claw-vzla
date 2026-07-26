@@ -5,7 +5,7 @@
 //!
 //! **Application in Kraken**: Escape from local optima during refactoring decisions.
 
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,9 +28,9 @@ impl SimulatedAnnealer {
         min_temperature: f64,
         iterations_per_temp: usize,
     ) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let current_solution: Vec<f64> = (0..dimensions).map(|_| rng.gen()).collect();
+        let current_solution: Vec<f64> = (0..dimensions).map(|_| rng.random()).collect();
         let current_energy = f64::INFINITY;
 
         Self {
@@ -58,7 +58,7 @@ impl SimulatedAnnealer {
     where
         F: Fn(&[f64]) -> f64 + Copy,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Evaluate current solution
         self.current_energy = energy_fn(&self.current_solution);
@@ -71,8 +71,8 @@ impl SimulatedAnnealer {
 
         // Generate neighbor
         let mut neighbor = self.current_solution.clone();
-        let idx = rng.gen_range(0..neighbor.len());
-        neighbor[idx] += rng.gen_range(-0.1..0.1);
+        let idx = rng.random_range(0..neighbor.len());
+        neighbor[idx] += rng.random_range(-0.1..0.1);
         neighbor[idx] = neighbor[idx].clamp(0.0, 1.0);
 
         // Calculate delta
@@ -84,7 +84,7 @@ impl SimulatedAnnealer {
             true
         } else {
             let probability = (-delta / self.temperature).exp();
-            rng.gen::<f64>() < probability
+            rng.random::<f64>() < probability
         };
 
         if accept {

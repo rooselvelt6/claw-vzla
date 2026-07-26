@@ -9,6 +9,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
+kraken-errors = { path = "../kraken-errors" }
 plugins = { path = "../plugins" }
 runtime = { path = "../runtime" }
 serde_json.workspace = true

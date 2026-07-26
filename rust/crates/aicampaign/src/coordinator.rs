@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentTask {
@@ -74,7 +75,7 @@ impl CampaignCoordinator {
 
     pub fn parallel_run(tasks: &[AgentTask]) -> Vec<AgentTask> {
         tasks.iter().map(|t| AgentTask {
-            status: if rand::random::<f64>() > 0.2 { TaskStatus::Completed } else { TaskStatus::Failed },
+            status: if rand::rng().random::<f64>() > 0.2 { TaskStatus::Completed } else { TaskStatus::Failed },
             ..t.clone()
         }).collect()
     }

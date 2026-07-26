@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TlsStressConfig {
@@ -55,7 +56,7 @@ impl TlsStressor {
             connections_established: established,
             renegotiations: reneg,
             errors,
-            avg_handshake_ms: 200.0 + rand::random::<f64>() * 800.0,
+            avg_handshake_ms: 200.0 + rand::rng().random::<f64>() * 800.0,
             success: errors < attempted / 2,
         }
     }

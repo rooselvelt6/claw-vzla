@@ -79,9 +79,9 @@ impl SmbBeacon {
         }
     }
 
-    pub fn send_command(&self, cmd: &SmbCommand) -> Result<String, String> {
+    pub fn send_command(&self, cmd: &SmbCommand) -> Result<String, crate::C2Error> {
         let _ = cmd;
-        Err("SMB beacon requiere Windows con named pipes".to_string())
+        Err(crate::C2Error::Protocol("SMB beacon requiere Windows con named pipes".to_string()))
     }
 }
 

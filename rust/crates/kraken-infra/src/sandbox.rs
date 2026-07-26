@@ -302,6 +302,80 @@ fn unshare_user_namespace_works() -> bool {
     })
 }
 
+/// Dangerous binaries that should never be allowed in the sandbox.
+/// Matches against the basename of the program path.
+const DANGEROUS_BINARIES: &[&str] = &[
+    "mkfs", "fdisk", "dd", "format", "shred", "wipefs",
+    "shutdown", "reboot", "halt", "init", "telinit",
+    "mount", "umount", "swapon", "swapoff",
+];
+
+/// ToolSandbox provides validated sandbox configuration for tool execution.
+pub struct ToolSandbox {
+    config: SandboxConfig,
+}
+
+impl ToolSandbox {
+    pub fn new(config: SandboxConfig) -> Self {
+        Self { config }
+    }
+
+    pub fn with_default() -> Self {
+        Self::new(SandboxConfig::default())
+    }
+
+    /// Validate that the given program path exists and is executable,
+    /// and is not on the dangerous-binaries blocklist.
+    pub fn can_execute(&self, program: &str) -> bool {
+        let name = std::path::Path::new(program)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(program);
+
+        for &dangerous in DANGEROUS_BINARIES {
+            if name == dangerous || name.starts_with(&format!("{dangerous}.")) {
+                return false;
+            }
+        }
+
+        // If it looks like an absolute path, verify it exists and is executable
+        let path = std::path::Path::new(program);
+        if path.is_absolute() {
+            if !path.exists() {
+                return false;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                return std::fs::metadata(path)
+                    .map(|m| m.permissions().mode() & 0o111 != 0)
+                    .unwrap_or(false);
+            }
+            #[cfg(not(unix))]
+            {
+                return true;
+            }
+        }
+
+        // For bare command names, check PATH
+        command_exists(program)
+    }
+
+    /// Verify that the sandbox configuration is internally consistent.
+    pub fn verify_config(&self) -> bool {
+        // If sandbox is enabled, namespace_restrictions or network_isolation should be on
+        if let Some(true) = self.config.enabled {
+            let has_any_restriction = self.config.namespace_restrictions.unwrap_or(true)
+                || self.config.network_isolation.unwrap_or(false)
+                || self.config.filesystem_mode != Some(FilesystemIsolationMode::Off);
+            if !has_any_restriction {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -380,5 +454,55 @@ mod tests {
             assert!(launcher.args.iter().any(|arg| arg == "--mount"));
             assert!(launcher.args.iter().any(|arg| arg == "--net") == status.network_active);
         }
+    }
+
+    #[test]
+    fn tool_sandbox_can_execute_known_binary() {
+        let sandbox = super::ToolSandbox::with_default();
+        assert!(sandbox.can_execute("ls"));
+    }
+
+    #[test]
+    fn tool_sandbox_blocks_dangerous_binaries() {
+        let sandbox = super::ToolSandbox::with_default();
+        assert!(!sandbox.can_execute("mkfs"));
+        assert!(!sandbox.can_execute("dd"));
+        assert!(!sandbox.can_execute("format"));
+        assert!(!sandbox.can_execute("shred"));
+        assert!(!sandbox.can_execute("/sbin/mkfs"));
+        assert!(!sandbox.can_execute("/sbin/mkfs.ext4"));
+        assert!(!sandbox.can_execute("/usr/bin/format"));
+    }
+
+    #[test]
+    fn tool_sandbox_verify_config_valid() {
+        let sandbox = super::ToolSandbox::with_default();
+        assert!(sandbox.verify_config());
+    }
+
+    #[test]
+    fn tool_sandbox_verify_config_invalid_when_enabled_no_restrictions() {
+        let config = super::SandboxConfig {
+            enabled: Some(true),
+            namespace_restrictions: Some(false),
+            network_isolation: Some(false),
+            filesystem_mode: Some(super::FilesystemIsolationMode::Off),
+            ..Default::default()
+        };
+        let sandbox = super::ToolSandbox::new(config);
+        assert!(!sandbox.verify_config());
+    }
+
+    #[test]
+    fn tool_sandbox_verify_config_disabled_is_valid() {
+        let config = super::SandboxConfig {
+            enabled: Some(false),
+            namespace_restrictions: Some(false),
+            network_isolation: Some(false),
+            filesystem_mode: Some(super::FilesystemIsolationMode::Off),
+            ..Default::default()
+        };
+        let sandbox = super::ToolSandbox::new(config);
+        assert!(sandbox.verify_config());
     }
 }

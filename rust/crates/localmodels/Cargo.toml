@@ -9,6 +9,7 @@ description = "ML Local Threat Detection — Classifier, Sequence Analysis, Ense
 log = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+thiserror.workspace = true
 
 [features]
 default = ["classifier", "sequence"]

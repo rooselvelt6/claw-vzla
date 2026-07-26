@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CampaignSnapshot {
@@ -46,7 +47,7 @@ impl CampaignReplay {
         let replay_phases: Vec<ReplayPhase> = phases.iter().map(|&(name, success, output)| {
             ReplayPhase {
                 name: name.to_string(),
-                duration_secs: rand::random::<u64>() % 60 + 10,
+                duration_secs: rand::rng().random::<u64>() % 60 + 10,
                 success,
                 output: output.iter().map(|s| s.to_string()).collect(),
             }
@@ -70,7 +71,7 @@ impl CampaignReplay {
                 let still_success = if !p.success {
                     false
                 } else {
-                    rand::random::<f64>() > 0.1
+                    rand::rng().random::<f64>() > 0.1
                 };
                 ReplayPhase {
                     name: p.name.clone(),

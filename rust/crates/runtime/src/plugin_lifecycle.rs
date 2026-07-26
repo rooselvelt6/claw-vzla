@@ -1,6 +1,7 @@
 #![allow(clippy::redundant_closure_for_method_calls)]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use kraken_errors::RuntimeError;
 use serde::{Deserialize, Serialize};
 
 use crate::config::RuntimePluginConfig;
@@ -212,10 +213,10 @@ impl std::fmt::Display for PluginLifecycleEvent {
 }
 
 pub trait PluginLifecycle {
-    fn validate_config(&self, config: &RuntimePluginConfig) -> Result<(), String>;
+    fn validate_config(&self, config: &RuntimePluginConfig) -> Result<(), RuntimeError>;
     fn healthcheck(&self) -> PluginHealthcheck;
     fn discover(&self) -> DiscoveryResult;
-    fn shutdown(&mut self) -> Result<(), String>;
+    fn shutdown(&mut self) -> Result<(), RuntimeError>;
 }
 
 #[cfg(test)]
@@ -252,14 +253,14 @@ mod tests {
     }
 
     impl PluginLifecycle for MockPluginLifecycle {
-        fn validate_config(&self, _config: &RuntimePluginConfig) -> Result<(), String> {
+        fn validate_config(&self, _config: &RuntimePluginConfig) -> Result<(), RuntimeError> {
             if self.valid_config {
                 Ok(())
             } else {
-                Err(format!(
+                Err(RuntimeError::Plugin(format!(
                     "plugin `{}` failed configuration validation",
                     self.plugin_name
-                ))
+                )))
             }
         }
 
@@ -280,9 +281,9 @@ mod tests {
             self.discovery.clone()
         }
 
-        fn shutdown(&mut self) -> Result<(), String> {
+        fn shutdown(&mut self) -> Result<(), RuntimeError> {
             if let Some(error) = &self.shutdown_error {
-                return Err(error.clone());
+                return Err(RuntimeError::Plugin(error.clone()));
             }
 
             self.shutdown_called = true;
@@ -370,13 +371,13 @@ mod tests {
         let post_shutdown = lifecycle.healthcheck();
 
         // then
-        assert_eq!(validation, Ok(()));
+        assert!(validation.is_ok());
         assert_eq!(healthcheck.state, PluginState::Healthy);
         assert_eq!(healthcheck.plugin_name, "healthy-plugin");
         assert_eq!(discovery.tools.len(), 3);
         assert_eq!(discovery.resources.len(), 1);
         assert!(!discovery.partial);
-        assert_eq!(shutdown, Ok(()));
+        assert!(shutdown.is_ok());
         assert_eq!(post_shutdown.state, PluginState::Stopped);
     }
 
@@ -526,7 +527,7 @@ mod tests {
         let post_shutdown = lifecycle.healthcheck();
 
         // then
-        assert_eq!(shutdown, Ok(()));
+        assert!(shutdown.is_ok());
         assert_eq!(PluginLifecycleEvent::Shutdown.to_string(), "shutdown");
         assert_eq!(post_shutdown.state, PluginState::Stopped);
     }

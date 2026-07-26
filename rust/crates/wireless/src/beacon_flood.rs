@@ -1,5 +1,6 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
-use rand::Rng;
+use rand::RngExt;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -53,11 +54,11 @@ impl BeaconFlood {
         self
     }
 
-    pub fn start(&mut self) -> Result<BeaconFloodStats, String> {
+    pub fn start(&mut self) -> Result<BeaconFloodStats, WirelessError> {
         self.running.store(true, Ordering::SeqCst);
 
         if self.ssids.is_empty() {
-            return Err("No SSIDs configured for beacon flood".to_string());
+            return Err(WirelessError::Other("No SSIDs configured for beacon flood".to_string()));
         }
 
         let tmp_file = format!("/tmp/kraken_beacon_{}.conf", self.interface);
@@ -69,7 +70,7 @@ impl BeaconFlood {
         }
 
         std::fs::write(&tmp_file, &conf)
-            .map_err(|e| format!("Cannot write config: {}", e))?;
+            .map_err(|e| WirelessError::Io(std::io::Error::new(std::io::ErrorKind::Other, format!("Cannot write config: {}", e))))?;
 
         let running = self.running.clone();
         let interface = self.interface.clone();
@@ -122,7 +123,7 @@ impl BeaconFlood {
     }
 
     pub fn generate_random_bssid() -> [u8; 6] {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut mac = [0u8; 6];
         rng.fill(&mut mac);
         mac[0] = mac[0] & 0xfe | 0x02;
@@ -155,7 +156,7 @@ impl EvilTwin {
         self.portal_html = html.to_string();
     }
 
-    pub fn start(&self) -> Result<(), String> {
+    pub fn start(&self) -> Result<(), WirelessError> {
         let bssid = if self.target_bssid.is_empty() {
             format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
                 0x00, 0x11, 0x22, 0x33, 0x44, 0x55)
@@ -171,7 +172,7 @@ impl EvilTwin {
                 &self.interface,
             ])
             .spawn()
-            .map_err(|e| format!("airbase-ng failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("airbase-ng failed: {}", e)))?;
 
         if self.captive_portal {
             let html_file = format!("/tmp/kraken_portal_{}.html", self.target_essid.replace(' ', ""));
@@ -284,7 +285,7 @@ mod tests {
             .with_ssid_list(vec![]);
         let result = flood.start();
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("No SSIDs"));
+        assert!(result.unwrap_err().to_string().contains("No SSIDs"));
     }
 
     #[test]

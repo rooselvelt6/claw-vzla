@@ -406,8 +406,8 @@ impl Default for AuditLog {
 
 pub fn generate_audit_keypair() -> (SigningKey, VerifyingKey) {
     let mut secret_bytes = [0u8; 32];
-    use rand::RngCore;
-    rand::rngs::OsRng.fill_bytes(&mut secret_bytes);
+    use rand::Rng;
+    rand::rng().fill_bytes(&mut secret_bytes);
     let signing_key = SigningKey::from_bytes(&secret_bytes);
     let verifying_key = signing_key.verifying_key();
     (signing_key, verifying_key)

@@ -1,3 +1,4 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -67,11 +68,11 @@ impl HandshakeCapture {
         }
     }
 
-    pub fn start_capture(&mut self, timeout_secs: u64) -> Result<PcapCapture, String> {
+    pub fn start_capture(&mut self, timeout_secs: u64) -> Result<PcapCapture, WirelessError> {
         self.running.store(true, Ordering::SeqCst);
 
         std::fs::create_dir_all(&self.output_dir)
-            .map_err(|e| format!("Cannot create output dir: {}", e))?;
+            .map_err(WirelessError::Io)?;
 
         let output_file = format!("{}/handshake_{}.pcap", self.output_dir, self.bssid.replace(':', ""));
 
@@ -84,7 +85,7 @@ impl HandshakeCapture {
                 "--output-format", "pcap",
             ])
             .spawn()
-            .map_err(|e| format!("airodump-ng failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("airodump-ng failed: {}", e)))?;
 
         let start = std::time::Instant::now();
 
@@ -222,7 +223,7 @@ impl PmkidAttack {
         }
     }
 
-    pub fn capture_pmkid(&self, timeout_secs: u64) -> Result<HashMap<String, String>, String> {
+    pub fn capture_pmkid(&self, timeout_secs: u64) -> Result<HashMap<String, String>, WirelessError> {
         let _start = std::time::Instant::now();
         let _timeout = Duration::from_secs(timeout_secs);
 
@@ -233,7 +234,7 @@ impl PmkidAttack {
                 "--enable_status=15",
             ])
             .output()
-            .map_err(|e| format!("hcxdumptool failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("hcxdumptool failed: {}", e)))?;
 
         let mut result = HashMap::new();
         if output.status.success() {
@@ -277,7 +278,7 @@ impl WpaCracker {
         }
     }
 
-    pub fn crack_handshake(&self, pcap_file: &str, bssid: &str) -> Result<CrackResult, String> {
+    pub fn crack_handshake(&self, pcap_file: &str, bssid: &str) -> Result<CrackResult, WirelessError> {
         let start = std::time::Instant::now();
 
         let output = Command::new("aircrack-ng")
@@ -287,7 +288,7 @@ impl WpaCracker {
                 pcap_file,
             ])
             .output()
-            .map_err(|e| format!("aircrack-ng failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("aircrack-ng failed: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut password = None;
@@ -319,7 +320,7 @@ impl WpaCracker {
         })
     }
 
-    pub fn crack_pmkid(&self, pmkid_file: &str, essid: &str) -> Result<CrackResult, String> {
+    pub fn crack_pmkid(&self, pmkid_file: &str, essid: &str) -> Result<CrackResult, WirelessError> {
         let start = std::time::Instant::now();
 
         let output = Command::new("hashcat")
@@ -332,7 +333,7 @@ impl WpaCracker {
                 "--show",
             ])
             .output()
-            .map_err(|e| format!("hashcat failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("hashcat failed: {}", e)))?;
 
         let mut password = None;
         let stdout = String::from_utf8_lossy(&output.stdout);

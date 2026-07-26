@@ -12,3 +12,4 @@ goblin = "0.9"
 regex = "1"
 hex = "0.4"
 log = "0.4"
+thiserror.workspace = true

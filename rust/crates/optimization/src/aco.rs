@@ -6,7 +6,7 @@
 //!
 //! **Application in Kraken**: Path discovery for code navigation
 
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -181,8 +181,8 @@ impl Ant {
 
         // Roulette wheel selection
         if total > 0.0 {
-            let mut rng = rand::thread_rng();
-            let mut r = rng.gen::<f64>() * total;
+            let mut rng = rand::rng();
+            let mut r = rng.random::<f64>() * total;
 
             for (i, prob) in probabilities.iter().enumerate() {
                 r -= prob;
@@ -198,8 +198,8 @@ impl Ant {
 
         // Fallback: random selection
         if !available.is_empty() {
-            let mut rng = rand::thread_rng();
-            let idx = rng.gen_range(0..available.len());
+            let mut rng = rand::rng();
+            let idx = rng.random_range(0..available.len());
             let next_node = available[idx].clone();
             self.current_node = next_node.clone();
             self.visited.push(next_node.clone());
@@ -272,11 +272,11 @@ impl ACOPathFinder {
             return;
         }
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         self.ants.clear();
 
         for _ in 0..self.ant_count {
-            let start = nodes[rng.gen_range(0..nodes.len())].clone();
+            let start = nodes[rng.random_range(0..nodes.len())].clone();
             self.ants.push(Ant::new(start));
         }
 

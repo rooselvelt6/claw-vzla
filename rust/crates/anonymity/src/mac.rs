@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MacAddress {
@@ -62,7 +63,7 @@ impl MacRandomizer {
     }
 
     pub fn generate_mac() -> String {
-        let bytes: [u8; 6] = rand::random();
+        let bytes: [u8; 6] = rand::rng().random();
         format!(
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             bytes[0] & 0xfc | 0x02,

@@ -1,3 +1,4 @@
+use kraken_errors::PasswordError;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
@@ -17,39 +18,39 @@ pub struct BruteForceResult {
 
 pub trait OnlineBruteForcer {
     fn service_name(&self) -> &'static str;
-    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, String>;
+    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, PasswordError>;
 }
 
 pub struct FtpBruteForcer;
 impl FtpBruteForcer {
-    fn parse_response<R: BufRead>(reader: &mut R) -> Result<String, String> {
+    fn parse_response<R: BufRead>(reader: &mut R) -> Result<String, PasswordError> {
         let mut line = String::new();
-        reader.read_line(&mut line).map_err(|e| format!("FTP read error: {}", e))?;
+        reader.read_line(&mut line).map_err(PasswordError::Io)?;
         Ok(line.trim().to_string())
     }
 }
 impl OnlineBruteForcer for FtpBruteForcer {
     fn service_name(&self) -> &'static str { "FTP" }
 
-    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, String> {
+    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, PasswordError> {
         let addr = target.to_socket_addrs()
-            .map_err(|e| format!("DNS error: {}", e))?
+            .map_err(|e| PasswordError::Network(format!("DNS error: {}", e)))?
             .next()
-            .ok_or_else(|| "No address resolved".to_string())?;
+            .ok_or_else(|| PasswordError::Network("No address resolved".to_string()))?;
 
         let mut stream = TcpStream::connect_timeout(&addr, TIMEOUT)
-            .map_err(|e| format!("FTP connect failed: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("FTP connect failed: {}", e)))?;
         stream.set_read_timeout(Some(TIMEOUT)).ok();
         stream.set_write_timeout(Some(TIMEOUT)).ok();
 
-        let mut reader = BufReader::new(stream.try_clone().map_err(|e| e.to_string())?);
+        let mut reader = BufReader::new(stream.try_clone().map_err(|e| PasswordError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?);
 
         let _banner = Self::parse_response(&mut reader)?;
 
-        writeln!(stream, "USER {}", username).map_err(|e| format!("FTP send USER failed: {}", e))?;
+        writeln!(stream, "USER {}", username).map_err(|e| PasswordError::Network(format!("FTP send USER failed: {}", e)))?;
         let _user_resp = Self::parse_response(&mut reader)?;
 
-        writeln!(stream, "PASS {}", password).map_err(|e| format!("FTP send PASS failed: {}", e))?;
+        writeln!(stream, "PASS {}", password).map_err(|e| PasswordError::Network(format!("FTP send PASS failed: {}", e)))?;
         let pass_resp = Self::parse_response(&mut reader)?;
 
         Ok(pass_resp.starts_with("2") || pass_resp.starts_with("230"))
@@ -60,12 +61,12 @@ pub struct HttpBasicBruteForcer;
 impl OnlineBruteForcer for HttpBasicBruteForcer {
     fn service_name(&self) -> &'static str { "HTTP Basic Auth" }
 
-    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, String> {
+    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, PasswordError> {
         let client = reqwest::blocking::Client::builder()
             .timeout(TIMEOUT)
             .danger_accept_invalid_certs(true)
             .build()
-            .map_err(|e| format!("HTTP client error: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("HTTP client error: {}", e)))?;
 
         let credentials = base64::engine::general_purpose::STANDARD
             .encode(format!("{}:{}", username, password));
@@ -74,7 +75,7 @@ impl OnlineBruteForcer for HttpBasicBruteForcer {
         let response = client.get(target)
             .header("Authorization", &auth_header)
             .send()
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("HTTP request failed: {}", e)))?;
 
         Ok(response.status().as_u16() != 401 && response.status().as_u16() != 403)
     }
@@ -101,13 +102,13 @@ impl HttpFormBruteForcer {
 impl OnlineBruteForcer for HttpFormBruteForcer {
     fn service_name(&self) -> &'static str { "HTTP Form Auth" }
 
-    fn try_login(&self, _target: &str, username: &str, password: &str) -> Result<bool, String> {
+    fn try_login(&self, _target: &str, username: &str, password: &str) -> Result<bool, PasswordError> {
         let client = reqwest::blocking::Client::builder()
             .timeout(TIMEOUT)
             .danger_accept_invalid_certs(true)
             .redirect(reqwest::redirect::Policy::none())
             .build()
-            .map_err(|e| format!("HTTP client error: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("HTTP client error: {}", e)))?;
 
         let params = [
             (self.username_field.as_str(), username),
@@ -117,9 +118,9 @@ impl OnlineBruteForcer for HttpFormBruteForcer {
         let response = client.post(&self.form_action)
             .form(&params)
             .send()
-            .map_err(|e| format!("HTTP POST failed: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("HTTP POST failed: {}", e)))?;
 
-        let body = response.text().map_err(|e| format!("HTTP read failed: {}", e))?;
+        let body = response.text().map_err(|e| PasswordError::Network(format!("HTTP read failed: {}", e)))?;
 
         if let Some(fail) = &self.fail_indicator {
             if body.contains(fail) {
@@ -137,24 +138,24 @@ pub struct SshBruteForcer;
 impl OnlineBruteForcer for SshBruteForcer {
     fn service_name(&self) -> &'static str { "SSH" }
 
-    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, String> {
+    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, PasswordError> {
         use ssh2::Session;
         use std::net::TcpStream;
         use std::time::Duration;
 
         let addr = target.to_socket_addrs()
-            .map_err(|e| format!("DNS error: {}", e))?
+            .map_err(|e| PasswordError::Network(format!("DNS error: {}", e)))?
             .next()
-            .ok_or_else(|| "No address resolved".to_string())?;
+            .ok_or_else(|| PasswordError::Network("No address resolved".to_string()))?;
 
         let tcp = TcpStream::connect_timeout(&addr, TIMEOUT)
-            .map_err(|e| format!("SSH connect failed: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("SSH connect failed: {}", e)))?;
         tcp.set_read_timeout(Some(TIMEOUT)).ok();
         tcp.set_write_timeout(Some(TIMEOUT)).ok();
 
-        let mut session = Session::new().map_err(|e| format!("SSH session error: {}", e))?;
+        let mut session = Session::new().map_err(|e| PasswordError::Protocol(format!("SSH session error: {}", e)))?;
         session.set_tcp_stream(tcp);
-        session.handshake().map_err(|e| format!("SSH handshake failed: {}", e))?;
+        session.handshake().map_err(|e| PasswordError::Protocol(format!("SSH handshake failed: {}", e)))?;
 
         session.userauth_password(username, password).map_err(|e| e).ok();
 
@@ -190,27 +191,27 @@ impl MySqlBruteForcer {
 impl OnlineBruteForcer for MySqlBruteForcer {
     fn service_name(&self) -> &'static str { "MySQL" }
 
-    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, String> {
+    fn try_login(&self, target: &str, username: &str, password: &str) -> Result<bool, PasswordError> {
         let addr = target.to_socket_addrs()
-            .map_err(|e| format!("DNS error: {}", e))?
+            .map_err(|e| PasswordError::Network(format!("DNS error: {}", e)))?
             .next()
-            .ok_or_else(|| "No address resolved".to_string())?;
+            .ok_or_else(|| PasswordError::Network("No address resolved".to_string()))?;
 
         let mut stream = TcpStream::connect_timeout(&addr, TIMEOUT)
-            .map_err(|e| format!("MySQL connect failed: {}", e))?;
+            .map_err(|e| PasswordError::Network(format!("MySQL connect failed: {}", e)))?;
         stream.set_read_timeout(Some(TIMEOUT)).ok();
         stream.set_write_timeout(Some(TIMEOUT)).ok();
 
         let mut buf = [0u8; 4096];
-        let n = stream.read(&mut buf).map_err(|e| format!("MySQL read error: {}", e))?;
+        let n = stream.read(&mut buf).map_err(PasswordError::Io)?;
 
         if n < 4 || buf[0] != 0x0a {
-            return Err("Not a MySQL server".to_string());
+            return Err(PasswordError::Protocol("Not a MySQL server".to_string()));
         }
 
         let protocol_version = buf[4];
         if protocol_version != 10 {
-            return Err("Unsupported MySQL protocol".to_string());
+            return Err(PasswordError::Protocol("Unsupported MySQL protocol".to_string()));
         }
 
         let auth_plugin_data_part1 = &buf[5..13];
@@ -239,9 +240,9 @@ impl OnlineBruteForcer for MySqlBruteForcer {
         let len = handshake.len() as u32;
         handshake[0..4].copy_from_slice(&len.to_le_bytes());
 
-        stream.write_all(&handshake).map_err(|e| format!("MySQL write error: {}", e))?;
+        stream.write_all(&handshake).map_err(PasswordError::Io)?;
 
-        let n = stream.read(&mut buf).map_err(|e| format!("MySQL read error: {}", e))?;
+        let n = stream.read(&mut buf).map_err(PasswordError::Io)?;
 
         let success = n >= 4 && buf[4] == 0x00;
         Ok(success)

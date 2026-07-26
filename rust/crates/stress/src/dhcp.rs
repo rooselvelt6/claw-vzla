@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DhcpStarvationConfig {
@@ -60,9 +61,9 @@ impl DhcpStarver {
     }
 
     pub fn generate_discover(_config: &DhcpStarvationConfig, _index: u64) -> DhcpDiscover {
-        let mac_bytes: [u8; 6] = rand::random();
+        let mac_bytes: [u8; 6] = rand::rng().random();
         DhcpDiscover {
-            xid: rand::random(),
+            xid: rand::rng().random(),
             chaddr: format!(
                 "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
                 mac_bytes[0], mac_bytes[1], mac_bytes[2], mac_bytes[3], mac_bytes[4], mac_bytes[5]

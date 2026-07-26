@@ -1,3 +1,4 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -47,7 +48,7 @@ impl WpsAttack {
         self
     }
 
-    pub fn brute_force(&mut self, timeout_secs: u64) -> Result<WpsPinResult, String> {
+    pub fn brute_force(&mut self, timeout_secs: u64) -> Result<WpsPinResult, WirelessError> {
         self.running.store(true, Ordering::SeqCst);
         let start = std::time::Instant::now();
         let attempts = 0u64;
@@ -65,7 +66,7 @@ impl WpsAttack {
                 "-vv",
             ])
             .spawn()
-            .map_err(|e| format!("reaver failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("reaver failed: {}", e)))?;
 
         loop {
             if start.elapsed() > Duration::from_secs(timeout_secs) {
@@ -93,7 +94,7 @@ impl WpsAttack {
         })
     }
 
-    pub fn pixie_dust(&mut self, timeout_secs: u64) -> Result<WpsPinResult, String> {
+    pub fn pixie_dust(&mut self, timeout_secs: u64) -> Result<WpsPinResult, WirelessError> {
         let start = std::time::Instant::now();
         let mut attempts = 0u64;
 
@@ -105,7 +106,7 @@ impl WpsAttack {
                 "-vv",
             ])
             .output()
-            .map_err(|e| format!("reaver pixie dust failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("reaver pixie dust failed: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut found_pin = None;

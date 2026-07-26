@@ -68,8 +68,8 @@ pub fn backoff_delay(attempt: u32, base_ms: u64) -> Duration {
 }
 
 pub fn jitter(dur: Duration) -> Duration {
-    use rand::Rng;
-    let jitter_ms: u64 = rand::thread_rng().gen_range(0..=dur.as_millis() as u64);
+    use rand::RngExt;
+    let jitter_ms: u64 = rand::rng().random_range(0..=dur.as_millis() as u64);
     Duration::from_millis(jitter_ms)
 }
 

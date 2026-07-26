@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HttpAttackType {
@@ -48,7 +49,7 @@ impl HttpStressor {
             requests_sent: total,
             responses_received: total.saturating_sub(total / 10),
             errors: total / 10,
-            avg_latency_ms: 150.0 + rand::random::<f64>() * 500.0,
+            avg_latency_ms: 150.0 + rand::rng().random::<f64>() * 500.0,
             requests_per_sec: rps,
             success: true,
         }

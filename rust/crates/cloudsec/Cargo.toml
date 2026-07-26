@@ -9,9 +9,10 @@ publish.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 reqwest = { version = "0.12", features = ["blocking"] }
-rand = "0.8"
+rand.workspace = true
 sha2 = "0.10"
 hex = "0.4"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde", "clock"] }
 base64 = "0.22"
+thiserror.workspace = true

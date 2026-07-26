@@ -44,10 +44,10 @@ impl SessionManager {
         sessions.insert(session.agent_id.clone(), session);
     }
 
-    pub async fn heartbeat(&self, agent_id: &str) -> Result<(), String> {
+    pub async fn heartbeat(&self, agent_id: &str) -> Result<(), crate::C2Error> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(agent_id)
-            .ok_or_else(|| format!("Agent {} not registered", agent_id))?;
+            .ok_or_else(|| crate::C2Error::Session(format!("Agent {} not registered", agent_id)))?;
         session.last_seen = chrono::Utc::now().to_rfc3339();
         session.alive = true;
         Ok(())
@@ -83,10 +83,10 @@ impl SessionManager {
         sessions.remove(agent_id);
     }
 
-    pub async fn update_tags(&self, agent_id: &str, tags: Vec<String>) -> Result<(), String> {
+    pub async fn update_tags(&self, agent_id: &str, tags: Vec<String>) -> Result<(), crate::C2Error> {
         let mut sessions = self.sessions.write().await;
         let session = sessions.get_mut(agent_id)
-            .ok_or_else(|| format!("Agent {} not found", agent_id))?;
+            .ok_or_else(|| crate::C2Error::AgentNotFound(agent_id.to_string()))?;
         session.tags = tags;
         Ok(())
     }

@@ -124,10 +124,10 @@ impl ProxyAwareClient {
         Self::check_egress(&targets).await
     }
 
-    pub fn test_proxy_dns(proxy_url: &str, test_domain: &str) -> Result<bool, String> {
+    pub fn test_proxy_dns(proxy_url: &str, test_domain: &str) -> Result<bool, crate::C2Error> {
         let _ = proxy_url;
         let _ = test_domain;
-        Err("DNS-over-proxy test requires async runtime".to_string())
+        Err(crate::C2Error::Protocol("DNS-over-proxy test requires async runtime".to_string()))
     }
 }
 

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -196,14 +196,14 @@ impl CollabServer {
 }
 
 fn generate_session_id() -> String {
-    let mut rng = rand::thread_rng();
-    let id: u64 = rng.gen();
+    let mut rng = rand::rng();
+    let id: u64 = rng.random();
     format!("sess_{:016x}", id)
 }
 
 fn generate_finding_id() -> String {
-    let mut rng = rand::thread_rng();
-    let id: u64 = rng.gen();
+    let mut rng = rand::rng();
+    let id: u64 = rng.random();
     format!("find_{:016x}", id)
 }
 

@@ -50,9 +50,9 @@ impl KillSwitch {
         self.killed.load(Ordering::SeqCst)
     }
 
-    pub fn process_command(&self, cmd: &KillCommand) -> Result<String, String> {
+    pub fn process_command(&self, cmd: &KillCommand) -> Result<String, crate::C2Error> {
         if cmd.password != self.config.kill_password {
-            return Err("Invalid kill password".to_string());
+            return Err(crate::C2Error::Protocol("Invalid kill password".to_string()));
         }
 
         match cmd.action {
@@ -63,7 +63,7 @@ impl KillSwitch {
             KillAction::Reconnect => {
                 let url = cmd.reconnect_url.as_ref()
                     .or(self.config.reconnect_url.as_ref())
-                    .ok_or_else(|| "No reconnect URL provided".to_string())?;
+                    .ok_or_else(|| crate::C2Error::Protocol("No reconnect URL provided".to_string()))?;
                 Ok(format!("RECONNECT to {}", url))
             }
             KillAction::Sleep => {

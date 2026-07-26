@@ -7,6 +7,7 @@
 pub mod bootstrap;
 pub mod circuit_breaker;
 pub mod concurrency;
+pub mod error;
 pub mod file_ops;
 pub mod forensic;
 pub mod fingerprint;
@@ -17,6 +18,15 @@ pub mod sandbox;
 pub mod sanitizer;
 pub mod size_budget;
 pub mod summary_compression;
+
+#[cfg(target_os = "linux")]
+pub mod sandbox_seccomp;
+#[cfg(target_os = "linux")]
+pub mod sandbox_landlock;
+#[cfg(target_os = "linux")]
+pub mod sandbox_namespace;
+#[cfg(target_os = "linux")]
+pub mod sandbox_resource;
 
 pub use bootstrap::{BootstrapPhase, BootstrapPlan};
 pub use circuit_breaker::{
@@ -45,7 +55,7 @@ pub use sandbox::{
     build_linux_sandbox_command, detect_container_environment, detect_container_environment_from,
     resolve_sandbox_status, resolve_sandbox_status_for_request, ContainerEnvironment,
     FilesystemIsolationMode, LinuxSandboxCommand, SandboxConfig, SandboxDetectionInputs,
-    SandboxRequest, SandboxStatus,
+    SandboxRequest, SandboxStatus, ToolSandbox,
 };
 pub use sanitizer::{
     file_op_count, track_file_operation, Sanitizer, SanitizerConfig, SanitizerIssue,

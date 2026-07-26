@@ -6,6 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+kraken-errors = { path = "../kraken-errors" }
 kraken-infra = { path = "../kraken-infra" }
 kraken-git = { path = "../kraken-git" }
 kraken-events = { path = "../kraken-events" }

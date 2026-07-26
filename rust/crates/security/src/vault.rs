@@ -190,9 +190,9 @@ impl CredentialVault {
 }
 
 fn random_salt() -> [u8; SALT_SIZE] {
-    use rand::RngCore;
+    use rand::Rng;
     let mut salt = [0u8; SALT_SIZE];
-    rand::rngs::OsRng.fill_bytes(&mut salt);
+    rand::rng().fill_bytes(&mut salt);
     salt
 }
 

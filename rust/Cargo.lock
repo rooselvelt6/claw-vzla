@@ -70,7 +70,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde_json",
 ]
@@ -102,7 +102,7 @@ version = "0.1.0"
 dependencies = [
  "hex",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "serde",
  "serde_json",
@@ -288,7 +288,7 @@ dependencies = [
  "hex",
  "hickory-resolver",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest",
  "security",
  "serde",
@@ -473,11 +473,12 @@ dependencies = [
  "chrono",
  "hex",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -494,6 +495,7 @@ dependencies = [
 name = "commands"
 version = "0.1.0"
 dependencies = [
+ "kraken-errors",
  "plugins",
  "runtime",
  "serde_json",
@@ -931,9 +933,10 @@ name = "enterprise"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
  "tokio",
  "tokio-test",
  "tracing",
@@ -1325,11 +1328,12 @@ dependencies = [
  "chrono",
  "hex",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -1946,6 +1950,7 @@ dependencies = [
 name = "kraken-events"
 version = "0.1.0"
 dependencies = [
+ "kraken-errors",
  "serde",
  "serde_json",
 ]
@@ -1963,10 +1968,15 @@ name = "kraken-infra"
 version = "0.1.0"
 dependencies = [
  "glob",
+ "kraken-errors",
+ "libc",
+ "log",
+ "nix",
  "regex",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
  "tokio",
  "walkdir",
 ]
@@ -1976,6 +1986,7 @@ name = "kraken-mcp"
 version = "0.1.0"
 dependencies = [
  "kraken-config",
+ "kraken-errors",
  "security",
  "serde",
  "serde_json",
@@ -2129,6 +2140,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2252,6 +2264,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2312,7 +2325,7 @@ dependencies = [
  "hickory-resolver",
  "kraken-errors",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "reqwest",
  "scraper",
@@ -2490,7 +2503,7 @@ dependencies = [
 name = "optimization"
 version = "0.1.0"
 dependencies = [
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde_json",
 ]
@@ -2508,7 +2521,7 @@ dependencies = [
  "chrono",
  "futures",
  "hickory-resolver",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "reqwest",
  "scraper",
@@ -2516,6 +2529,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "url",
 ]
@@ -2552,9 +2566,10 @@ dependencies = [
  "bcrypt",
  "csv",
  "hex",
+ "kraken-errors",
  "md-5",
  "password-hash",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "reqwest",
  "scraper",
@@ -2766,6 +2781,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "ssh2",
+ "thiserror 2.0.18",
  "walkdir",
 ]
 
@@ -3136,11 +3152,12 @@ dependencies = [
  "chrono",
  "hex",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
  "tokio",
 ]
 
@@ -3206,6 +3223,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3230,6 +3248,7 @@ dependencies = [
  "glob",
  "kraken-config",
  "kraken-conversation",
+ "kraken-errors",
  "kraken-events",
  "kraken-git",
  "kraken-infra",
@@ -3482,7 +3501,7 @@ dependencies = [
  "libc",
  "password-hash",
  "proptest",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "serde",
  "serde_json",
@@ -3741,7 +3760,7 @@ dependencies = [
  "hex",
  "kraken-errors",
  "pcap",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "serde",
  "serde_json",
@@ -3756,12 +3775,13 @@ dependencies = [
  "hex",
  "lettre",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "reqwest",
  "serde",
  "serde_json",
  "sha2",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -3808,7 +3828,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "serde",
  "serde_json",
 ]
@@ -3852,7 +3872,7 @@ dependencies = [
  "hex",
  "log",
  "proptest",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "serde",
  "serde_json",
@@ -4567,6 +4587,7 @@ dependencies = [
  "api",
  "chrono",
  "dirs",
+ "kraken-errors",
  "localmodels",
  "regex",
  "reqwest",
@@ -5180,8 +5201,9 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "hex",
+ "kraken-errors",
  "log",
- "rand 0.8.6",
+ "rand 0.10.1",
  "regex",
  "serde",
  "serde_json",

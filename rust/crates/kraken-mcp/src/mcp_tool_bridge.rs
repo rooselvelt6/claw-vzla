@@ -17,6 +17,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::mcp::mcp_tool_name;
 use crate::mcp_stdio::McpServerManager;
+use kraken_errors::McpError;
 use serde::{Deserialize, Serialize};
 
 /// Status of a managed MCP server connection.
@@ -121,33 +122,33 @@ impl McpToolRegistry {
         inner.values().cloned().collect()
     }
 
-    pub fn list_resources(&self, server_name: &str) -> Result<Vec<McpResourceInfo>, String> {
+    pub fn list_resources(&self, server_name: &str) -> Result<Vec<McpResourceInfo>, McpError> {
         let inner = self.inner.lock().expect("mcp registry lock poisoned");
         match inner.get(server_name) {
             Some(state) => {
                 if state.status != McpConnectionStatus::Connected {
-                    return Err(format!(
-                        "server '{}' is not connected (status: {})",
-                        server_name, state.status
-                    ));
+                    return Err(McpError::NotConnected {
+                        server: server_name.to_owned(),
+                        status: state.status.to_string(),
+                    });
                 }
                 Ok(state.resources.clone())
             }
-            None => Err(format!("server '{}' not found", server_name)),
+            None => Err(McpError::ServerNotFound(server_name.to_owned())),
         }
     }
 
-    pub fn read_resource(&self, server_name: &str, uri: &str) -> Result<McpResourceInfo, String> {
+    pub fn read_resource(&self, server_name: &str, uri: &str) -> Result<McpResourceInfo, McpError> {
         let inner = self.inner.lock().expect("mcp registry lock poisoned");
         let state = inner
             .get(server_name)
-            .ok_or_else(|| format!("server '{}' not found", server_name))?;
+            .ok_or_else(|| McpError::ServerNotFound(server_name.to_owned()))?;
 
         if state.status != McpConnectionStatus::Connected {
-            return Err(format!(
-                "server '{}' is not connected (status: {})",
-                server_name, state.status
-            ));
+            return Err(McpError::NotConnected {
+                server: server_name.to_owned(),
+                status: state.status.to_string(),
+            });
         }
 
         state
@@ -155,22 +156,22 @@ impl McpToolRegistry {
             .iter()
             .find(|r| r.uri == uri)
             .cloned()
-            .ok_or_else(|| format!("resource '{}' not found on server '{}'", uri, server_name))
+            .ok_or_else(|| McpError::Other(format!("resource '{}' not found on server '{}'", uri, server_name)))
     }
 
-    pub fn list_tools(&self, server_name: &str) -> Result<Vec<McpToolInfo>, String> {
+    pub fn list_tools(&self, server_name: &str) -> Result<Vec<McpToolInfo>, McpError> {
         let inner = self.inner.lock().expect("mcp registry lock poisoned");
         match inner.get(server_name) {
             Some(state) => {
                 if state.status != McpConnectionStatus::Connected {
-                    return Err(format!(
-                        "server '{}' is not connected (status: {})",
-                        server_name, state.status
-                    ));
+                    return Err(McpError::NotConnected {
+                        server: server_name.to_owned(),
+                        status: state.status.to_string(),
+                    });
                 }
                 Ok(state.tools.clone())
             }
-            None => Err(format!("server '{}' not found", server_name)),
+            None => Err(McpError::ServerNotFound(server_name.to_owned())),
         }
     }
 
@@ -178,29 +179,29 @@ impl McpToolRegistry {
         manager: Arc<Mutex<McpServerManager>>,
         qualified_tool_name: String,
         arguments: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, McpError> {
         let join_handle = std::thread::Builder::new()
             .name(format!("mcp-tool-call-{qualified_tool_name}"))
             .spawn(move || {
                 let runtime = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .map_err(|error| format!("failed to create MCP tool runtime: {error}"))?;
+                    .map_err(|error| McpError::Other(format!("failed to create MCP tool runtime: {error}")))?;
 
                 runtime.block_on(async move {
                     let response = {
                         let mut manager = manager
                             .lock()
-                            .map_err(|_| "mcp server manager lock poisoned".to_string())?;
+                            .map_err(|_| McpError::Other("mcp server manager lock poisoned".to_string()))?;
                         manager
                             .discover_tools()
                             .await
-                            .map_err(|error| error.to_string())?;
+                            .map_err(|error| McpError::Other(error.to_string()))?;
                         let response = manager
                             .call_tool(&qualified_tool_name, arguments)
                             .await
-                            .map_err(|error| error.to_string());
-                        let shutdown = manager.shutdown().await.map_err(|error| error.to_string());
+                            .map_err(|error| McpError::Other(error.to_string()));
+                        let shutdown = manager.shutdown().await.map_err(|error| McpError::Other(error.to_string()));
 
                         match (response, shutdown) {
                             (Ok(response), Ok(())) => Ok(response),
@@ -210,29 +211,29 @@ impl McpToolRegistry {
                     }?;
 
                     if let Some(error) = response.error {
-                        return Err(format!(
+                        return Err(McpError::Other(format!(
                             "MCP server returned JSON-RPC error for tools/call: {} ({})",
                             error.message, error.code
-                        ));
+                        )));
                     }
 
                     let result = response.result.ok_or_else(|| {
-                        "MCP server returned no result for tools/call".to_string()
+                        McpError::Other("MCP server returned no result for tools/call".to_string())
                     })?;
 
                     serde_json::to_value(result)
-                        .map_err(|error| format!("failed to serialize MCP tool result: {error}"))
+                        .map_err(|error| McpError::Other(format!("failed to serialize MCP tool result: {error}")))
                 })
             })
-            .map_err(|error| format!("failed to spawn MCP tool call thread: {error}"))?;
+            .map_err(|error| McpError::Other(format!("failed to spawn MCP tool call thread: {error}")))?;
 
         join_handle.join().map_err(|panic_payload| {
             if let Some(message) = panic_payload.downcast_ref::<&str>() {
-                format!("MCP tool call thread panicked: {message}")
+                McpError::Other(format!("MCP tool call thread panicked: {message}"))
             } else if let Some(message) = panic_payload.downcast_ref::<String>() {
-                format!("MCP tool call thread panicked: {message}")
+                McpError::Other(format!("MCP tool call thread panicked: {message}"))
             } else {
-                "MCP tool call thread panicked".to_string()
+                McpError::Other("MCP tool call thread panicked".to_string())
             }
         })?
     }
@@ -242,24 +243,24 @@ impl McpToolRegistry {
         server_name: &str,
         tool_name: &str,
         arguments: &serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, McpError> {
         let inner = self.inner.lock().expect("mcp registry lock poisoned");
         let state = inner
             .get(server_name)
-            .ok_or_else(|| format!("server '{}' not found", server_name))?;
+            .ok_or_else(|| McpError::ServerNotFound(server_name.to_owned()))?;
 
         if state.status != McpConnectionStatus::Connected {
-            return Err(format!(
-                "server '{}' is not connected (status: {})",
-                server_name, state.status
-            ));
+            return Err(McpError::NotConnected {
+                server: server_name.to_owned(),
+                status: state.status.to_string(),
+            });
         }
 
         if !state.tools.iter().any(|t| t.name == tool_name) {
-            return Err(format!(
+            return Err(McpError::Other(format!(
                 "tool '{}' not found on server '{}'",
                 tool_name, server_name
-            ));
+            )));
         }
 
         drop(inner);
@@ -268,7 +269,7 @@ impl McpToolRegistry {
             .manager
             .get()
             .cloned()
-            .ok_or_else(|| "MCP server manager is not configured".to_string())?;
+            .ok_or_else(|| McpError::Other("MCP server manager is not configured".to_string()))?;
 
         Self::spawn_tool_call(
             manager,
@@ -282,11 +283,11 @@ impl McpToolRegistry {
         &self,
         server_name: &str,
         status: McpConnectionStatus,
-    ) -> Result<(), String> {
+    ) -> Result<(), McpError> {
         let mut inner = self.inner.lock().expect("mcp registry lock poisoned");
         let state = inner
             .get_mut(server_name)
-            .ok_or_else(|| format!("server '{}' not found", server_name))?;
+            .ok_or_else(|| McpError::ServerNotFound(server_name.to_owned()))?;
         state.status = status;
         Ok(())
     }
@@ -560,7 +561,7 @@ mod tests {
         let error = registry
             .call_tool("srv", "greet", &serde_json::json!({"name": "world"}))
             .expect_err("should require a configured manager");
-        assert!(error.contains("MCP server manager is not configured"));
+        assert!(error.to_string().contains("MCP server manager is not configured"));
 
         // Unknown tool should fail
         assert!(registry
@@ -780,8 +781,8 @@ mod tests {
 
         // then
         let error = result.expect_err("non-connected server should fail");
-        assert!(error.contains("not connected"));
-        assert!(error.contains("auth_required"));
+        assert!(error.to_string().contains("not connected"));
+        assert!(error.to_string().contains("auth_required"));
     }
 
     #[test]
@@ -794,7 +795,7 @@ mod tests {
 
         // then
         assert_eq!(
-            result.expect_err("missing server should fail"),
+            result.expect_err("missing server should fail").to_string(),
             "server 'missing' not found"
         );
     }

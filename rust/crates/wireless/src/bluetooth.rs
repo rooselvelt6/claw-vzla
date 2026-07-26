@@ -1,3 +1,4 @@
+use kraken_errors::WirelessError;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
@@ -46,7 +47,7 @@ pub struct BleDevice {
 pub struct BluetoothScanner;
 
 impl BluetoothScanner {
-    pub fn scan_classic(timeout_secs: u64) -> Result<Vec<BluetoothDevice>, String> {
+    pub fn scan_classic(timeout_secs: u64) -> Result<Vec<BluetoothDevice>, WirelessError> {
         let _ = Command::new("hcitool")
             .args(["scan", "--flush"])
             .output();
@@ -54,7 +55,7 @@ impl BluetoothScanner {
         let output = Command::new("hcitool")
             .args(["scan"])
             .output()
-            .map_err(|e| format!("hcitool scan failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("hcitool scan failed: {}", e)))?;
 
         let mut devices = Vec::new();
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -84,7 +85,7 @@ impl BluetoothScanner {
             let output = Command::new("bluetoothctl")
                 .args(["--timeout", &timeout_secs.to_string(), "scan", "on"])
                 .output()
-                .map_err(|e| format!("bluetoothctl scan failed: {}", e))?;
+                .map_err(|e| WirelessError::Command(format!("bluetoothctl scan failed: {}", e)))?;
 
             let stdout = String::from_utf8_lossy(&output.stdout);
             for line in stdout.lines() {
@@ -108,13 +109,13 @@ impl BluetoothScanner {
         }
 
         if devices.is_empty() {
-            return Err("No Bluetooth devices found or Bluetooth adapter not available".to_string());
+            return Err(WirelessError::Device("No Bluetooth devices found or Bluetooth adapter not available".to_string()));
         }
 
         Ok(devices)
     }
 
-    pub fn scan_ble(timeout_secs: u64) -> Result<Vec<BleDevice>, String> {
+    pub fn scan_ble(timeout_secs: u64) -> Result<Vec<BleDevice>, WirelessError> {
         let _ = Command::new("hcitool")
             .args(["lescan", "--duplicates"])
             .spawn();
@@ -213,13 +214,13 @@ impl BluetoothScanner {
             .collect()
     }
 
-    pub fn adapter_power(adapter: &str, on: bool) -> Result<(), String> {
+    pub fn adapter_power(adapter: &str, on: bool) -> Result<(), WirelessError> {
         let state = if on { "up" } else { "down" };
         Command::new("hciconfig")
             .args([adapter, state])
             .output()
             .map(|_| ())
-            .map_err(|e| format!("Failed to set adapter power: {}", e))
+            .map_err(|e| WirelessError::Command(format!("Failed to set adapter power: {}", e)))
     }
 
     pub fn inquire_devices() -> Vec<BluetoothDevice> {
@@ -272,11 +273,11 @@ impl BluetoothScanner {
             .map(|d| d.mac.clone())
     }
 
-    pub fn enumerate_ble_services(mac: &str) -> Result<Vec<BleService>, String> {
+    pub fn enumerate_ble_services(mac: &str) -> Result<Vec<BleService>, WirelessError> {
         let output = Command::new("gatttool")
             .args(["-t", "random", "-b", mac, "--characteristics"])
             .output()
-            .map_err(|e| format!("gatttool failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("gatttool failed: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         let mut services = Vec::new();
@@ -377,11 +378,11 @@ impl BluetoothScanner {
         props
     }
 
-    pub fn read_ble_characteristic(mac: &str, handle: &str) -> Result<String, String> {
+    pub fn read_ble_characteristic(mac: &str, handle: &str) -> Result<String, WirelessError> {
         let output = Command::new("gatttool")
             .args(["-t", "random", "-b", mac, "--char-read", "-a", handle])
             .output()
-            .map_err(|e| format!("gatttool read failed: {}", e))?;
+            .map_err(|e| WirelessError::Command(format!("gatttool read failed: {}", e)))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.contains("value:") {
@@ -389,10 +390,10 @@ impl BluetoothScanner {
                 return Ok(val.trim().to_string());
             }
         }
-        Err("Failed to read characteristic".to_string())
+        Err(WirelessError::Parse("Failed to read characteristic".to_string()))
     }
 
-    pub fn get_ble_device_info(mac: &str) -> Result<BleDevice, String> {
+    pub fn get_ble_device_info(mac: &str) -> Result<BleDevice, WirelessError> {
         let services = Self::enumerate_ble_services(mac)?;
 
         let output = Command::new("hcitool")

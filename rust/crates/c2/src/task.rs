@@ -67,9 +67,9 @@ impl TaskManager {
         task
     }
 
-    pub async fn update_status(&self, task_id: &str, status: TaskStatus, result: Option<String>) -> Result<(), String> {
+    pub async fn update_status(&self, task_id: &str, status: TaskStatus, result: Option<String>) -> Result<(), crate::C2Error> {
         let mut tasks = self.tasks.lock().await;
-        let task = tasks.get_mut(task_id).ok_or_else(|| format!("Task {} not found", task_id))?;
+        let task = tasks.get_mut(task_id).ok_or_else(|| crate::C2Error::TaskNotFound(task_id.to_string()))?;
         task.status = status;
         if let Some(r) = result {
             task.result = Some(r);
@@ -98,7 +98,7 @@ impl TaskManager {
             .collect()
     }
 
-    pub async fn cancel_task(&self, task_id: &str) -> Result<(), String> {
+    pub async fn cancel_task(&self, task_id: &str) -> Result<(), crate::C2Error> {
         self.update_status(task_id, TaskStatus::Cancelled, None).await
     }
 

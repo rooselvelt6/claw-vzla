@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OnionShareFile {
@@ -81,7 +82,7 @@ impl OnionShare {
     }
 
     pub fn share(files: &[(&str, &[u8])], config: &OnionShareConfig) -> OnionShareSession {
-        let onion = format!("{:56}.onion", hex::encode(rand::random::<[u8; 28]>()));
+        let onion = format!("{:56}.onion", hex::encode(rand::rng().random::<[u8; 28]>()));
         let file_list: Vec<OnionShareFile> = files.iter().map(|&(name, data)| {
             let hash = sha2::Sha256::digest(data);
             OnionShareFile {
@@ -93,7 +94,7 @@ impl OnionShare {
         }).collect();
 
         OnionShareSession {
-            session_id: format!("sess_{:x}", rand::random::<u64>()),
+            session_id: format!("sess_{:x}", rand::rng().random::<u64>()),
             onion_address: onion,
             files: file_list,
             max_downloads: config.max_downloads,
@@ -155,10 +156,9 @@ impl OnionShare {
     }
 
     fn generate_onion() -> String {
-        use rand::Rng;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyz234567".chars().collect();
-        (0..56).map(|_| chars[rng.gen_range(0..chars.len())]).collect()
+        (0..56).map(|_| chars[rng.random_range(0..chars.len())]).collect()
     }
 
     fn detect_mime(name: &str) -> String {

@@ -1,5 +1,6 @@
 use chrono::{DateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
+use rand::RngExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduledTask {
@@ -75,7 +76,7 @@ impl OvernightMode {
         let mut failed = Vec::new();
 
         for task in tasks {
-            if rand::random::<f64>() > 0.15 {
+            if rand::rng().random::<f64>() > 0.15 {
                 completed.push(task.clone());
             } else {
                 failed.push(task.clone());

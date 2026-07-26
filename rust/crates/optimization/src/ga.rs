@@ -5,7 +5,7 @@
 //!
 //! **Application in Kraken**: Evolution of coding strategies
 
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 /// Represents a chromosome (solution) in the genetic algorithm
@@ -20,8 +20,8 @@ pub struct Chromosome {
 impl Chromosome {
     /// Create a new random chromosome
     pub fn new(gene_count: usize) -> Self {
-        let mut rng = rand::thread_rng();
-        let genes: Vec<f64> = (0..gene_count).map(|_| rng.gen()).collect();
+        let mut rng = rand::rng();
+        let genes: Vec<f64> = (0..gene_count).map(|_| rng.random()).collect();
 
         Self {
             genes,
@@ -51,19 +51,19 @@ impl Chromosome {
 
     /// Mutate a random gene
     pub fn mutate(&mut self, mutation_rate: f64) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         for gene in &mut self.genes {
-            if rng.gen::<f64>() < mutation_rate {
-                *gene = rng.gen();
+            if rng.random::<f64>() < mutation_rate {
+                *gene = rng.random();
             }
         }
     }
 
     /// Crossover with another chromosome (single-point crossover)
     pub fn crossover(&self, other: &Chromosome) -> (Chromosome, Chromosome) {
-        let mut rng = rand::thread_rng();
-        let crossover_point = rng.gen_range(1..self.genes.len());
+        let mut rng = rand::rng();
+        let crossover_point = rng.random_range(1..self.genes.len());
 
         let mut child1_genes = self.genes[..crossover_point].to_vec();
         child1_genes.extend_from_slice(&other.genes[crossover_point..]);
@@ -147,13 +147,13 @@ impl GeneticOptimizer {
 
     /// Perform selection (tournament selection)
     fn select(&self) -> Chromosome {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let tournament_size = 3;
 
-        let mut best = &self.population[rng.gen_range(0..self.population.len())];
+        let mut best = &self.population[rng.random_range(0..self.population.len())];
 
         for _ in 0..tournament_size - 1 {
-            let candidate = &self.population[rng.gen_range(0..self.population.len())];
+            let candidate = &self.population[rng.random_range(0..self.population.len())];
             if candidate.fitness > best.fitness {
                 best = candidate;
             }
@@ -164,7 +164,7 @@ impl GeneticOptimizer {
 
     /// Create next generation
     fn reproduce(&self) -> Vec<Chromosome> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut new_population = Vec::with_capacity(self.population_size);
 
         // Keep elite chromosomes
@@ -180,7 +180,7 @@ impl GeneticOptimizer {
             let mut child1: Chromosome;
             let mut child2: Chromosome;
 
-            if rng.gen::<f64>() < self.crossover_rate {
+            if rng.random::<f64>() < self.crossover_rate {
                 (child1, child2) = parent1.crossover(&parent2);
             } else {
                 child1 = parent1.clone();
