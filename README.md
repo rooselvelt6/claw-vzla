@@ -41,7 +41,7 @@ kraken/
 ├── plugins/          # Sistema de plugins extensible
 ├── telemetry/        # Telemetría y métricas
 ├── optimization/     # Algoritmos PSO, ACO, simulated annealing, GA
-├── rusty-claude-cli/ # Binario principal (target: kraken)
+├── rusty-claude-cli/ # Binario principal: main.rs + 5 módulos (args, completions, diagnostics, reports, stream)
 └── ...               # 43 crates en total
 ```
 
@@ -221,8 +221,8 @@ cargo build --release
 | **F11: Deprecations** | ✅ | SHA-256 KDF deprecated, `KdfAlgorithm::Sha256` deprecated |
 | **F12: Flaky test** | ✅ | Test aicampaign determinizado (factor random eliminado) |
 | **F8: OnceLock globals** | ⏭️ | 6 globals confinados a tools/src/lib.rs — bajo impacto, pendiente |
-| **F5: Decompose main.rs** | ⏳ | main.rs (13.7K líneas) → 5 sub-crates |
-| **F7: Clippy suppressions** | ⏳ | 18 `#[allow(clippy)]` en main.rs — requiere F5 |
+| **F5: Decompose main.rs** | ✅ | main.rs 13,696→10,420 líneas (-24%), 5 módulos extraídos |
+| **F7: Clippy suppressions** | ⏳ | 18 `#[allow(clippy)]` pendientes — ahora más fácil con módulos separados |
 
 ---
 
